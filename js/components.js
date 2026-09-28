@@ -84,7 +84,7 @@ export const COMPONENTS = {
     specs: [['Segments', '4 (A–D) or more'], ['Threshold energy', '~1–2 keV'], ['Z resolution', 'ΔZ ≈ 0.1 at high Z with averaging']],
     metrology: 'Quantitative BSE (mean-Z mapping) calibrates signal against standards of known Z (C, Al, Si, Cu, Au) at fixed current and gain. <b>ECCI</b> (channelling contrast imaging) is used to image dislocations in bulk samples.',
     limits: 'Poor efficiency at low kV; topographic and compositional contrasts mix unless separated.',
-    live: (S) => [['Mode', S.bseMode === 'topo' ? 'A − B (topography)' : 'A+B+C+D (composition)']],
+    live: (S) => [['Segments', P.segLabel(S.seg)], ['Contrast', P.segKind(S.seg)]],
   },
   'EDS detector': {
     kicker: 'Spectroscopy',

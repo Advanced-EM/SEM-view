@@ -12,7 +12,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const S = {
   mode: 'se', clarity: 'edu', spec: 'sn', fov: 20, cx: 0, cy: 0, tilt: 0, coated: false,
   kV: 5, current: 100, aperture: 30, wd: 5, focus: 0, stig: 0, dwell: 2,
-  etdBias: 250, bseMode: 'comp',
+  etdBias: 250, bseMode: 'comp', seg: { A: 1, B: 1, C: 1, D: 1 },
   mapN: 40, expo: 10, mapView: 'ipf', showHough: true, tkdThick: 90,
   edsSel: 'all', mcMax: 2500,
   speed: 1, paused: false, showLabels: true, showElectrons: true, showGlass: true, autoRotate: false,
@@ -53,7 +53,8 @@ const CONTROLS = [
 
   { sec: 'Detectors', modes: 'se bse ebsd tkd eds mc' },
   { slider: 'etdBias', label: 'ETD Faraday cage bias', min: -150, max: 300, step: 5, fmt: (v) => `${v > 0 ? '+' : ''}${v} V`, modes: 'se', ends: ['BSE only', '0', 'all SE'] },
-  { chips: 'bseMode', label: 'Segments', modes: 'bse', opts: [['comp', 'A+B+C+D composition'], ['topo', 'A−B topography']] },
+  { chips: 'bseMode', label: 'Segment presets', modes: 'bse', opts: [['comp', 'A+B+C+D'], ['topoX', 'A−B'], ['topoY', 'C−D']] },
+  { p: 'Or click the quadrants on the detector diagram to add (+), subtract (−) or switch off each segment.', modes: 'bse' },
   { chips: 'mapN', label: 'Map size', modes: 'ebsd tkd', opts: [[24, '24²'], [40, '40²'], [56, '56²']] },
   { slider: 'expo', label: 'Pattern exposure', min: 1, max: 50, step: 1, fmt: (v) => `${v} ms`, modes: 'ebsd tkd' },
   { slider: 'tkdThick', label: 'Foil thickness', min: 20, max: 400, step: 5, fmt: (v) => `${v} nm`, modes: 'tkd' },
@@ -110,6 +111,7 @@ function build() {
       el = document.createElement('button'); el.className = 'exp'; el.dataset.exp = c.exp;
       el.innerHTML = `<span class="ico">${ICONS[c.icon]}</span><span><b>${c.title}</b><small>${c.desc}</small></span>`;
       el.addEventListener('click', () => action(c.exp));
+    } else if (c.p) { el = document.createElement('p'); el.className = 'ctl note'; el.textContent = c.p;
     } else if (c.table) { el = document.createElement('table'); el.className = 'data'; el.innerHTML = '<tbody id="dataBody"></tbody>'; }
     if (!bound.some((b) => b.el === el)) bound.push({ c, el });
     if (c.modes) el.dataset.modes = c.modes;
@@ -158,7 +160,17 @@ function set(key, v, inv = key) {
 }
 function chip(key, v) {
   if (key === 'spec') return setSpec(v);
+  if (key === 'bseMode') {
+    S.seg = { comp: { A: 1, B: 1, C: 1, D: 1 }, topoX: { A: 1, B: -1, C: 0, D: 0 }, topoY: { A: 0, B: 0, C: 1, D: -1 } }[v];
+    return segChanged();
+  }
   set(key, v, key);
+}
+function segChanged() {
+  S.bseMode = P.segPreset(S.seg);
+  sim.invalidate('seg');
+  refresh();
+  explain('seg');
 }
 function setSpec(v) {
   S.spec = v;
@@ -259,7 +271,7 @@ function header() {
   const n = {
     se: ['Everhart–Thornley detector · SE image', 'Total electron yield vs voltage'],
     inlens: ['In-lens detector · SE image', 'Probe size vs convergence'],
-    bse: ['BSE detector · ' + (S.bseMode === 'topo' ? 'A − B' : 'A + B + C + D'), 'Backscatter coefficient & segments'],
+    bse: ['BSE detector · ' + P.segLabel(S.seg), 'Backscatter coefficient & segments'],
     ebsd: ['EBSD orientation map', 'Kikuchi pattern & indexing'],
     tkd: ['TKD orientation map', 'Kikuchi pattern & indexing'],
     eds: ['EDS element map', 'X-ray spectrum'],
@@ -324,6 +336,15 @@ function wire() {
   mainCv.addEventListener('pointerleave', () => { if (hoverIdx >= 0) { hoverIdx = -1; sim.version++; } });
   mainCv.addEventListener('wheel', (e) => { e.preventDefault(); set('fov', clamp(S.fov * Math.pow(1.0015, e.deltaY), sim.spec.fovMin, sim.spec.fovMax), 'fov'); }, { passive: false });
   secCv.addEventListener('pointerdown', (e) => {
+    if (S.mode === 'bse' && R2.layout.quad) {
+      // click a quadrant: + → − → off → +
+      const r = secCv.getBoundingClientRect(), Q = R2.layout.quad;
+      const x = e.clientX - r.left - Q.cx, y = Q.cy - (e.clientY - r.top), rad = Math.hypot(x, y);
+      if (rad < Q.R * 0.25 || rad > Q.R) return;
+      const a = Math.atan2(y, x), q = Math.abs(a) <= Math.PI / 4 ? 'A' : Math.abs(a) >= (3 * Math.PI) / 4 ? 'B' : a > 0 ? 'C' : 'D';
+      S.seg = { ...S.seg, [q]: S.seg[q] === 1 ? -1 : S.seg[q] === -1 ? 0 : 1 };
+      return segChanged();
+    }
     if (S.mode !== 'eds' || !R2.layout.eds) return;
     const L = R2.layout.eds, x = e.clientX - secCv.getBoundingClientRect().left, E = ((x - L.x0) / L.w) * L.Emax;
     let best = null, bd = 0.25;

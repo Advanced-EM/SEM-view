@@ -97,7 +97,7 @@ body::after { content: ''; position: fixed; inset: 0; pointer-events: none; back
 body[data-mode='4d'] #detMain { cursor: crosshair; }
 #detSec { flex: 1; min-width: 0; height: 100%; border-radius: 8px; background: #06080b; touch-action: none; }
 body[data-mode='eels'] #detSec, body[data-mode='4d'] #detSec { cursor: ew-resize; }
-body[data-mode='eds'] #detSec { cursor: pointer; }
+body[data-mode='eds'] #detSec, body[data-mode='bse'] #detSec { cursor: pointer; }
 
 .controls { position: fixed; top: 14px; right: 14px; bottom: 14px; width: calc(var(--right) - 14px); overflow-y: auto; padding: 16px 16px 20px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.12) transparent; }
 .clarity { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }

@@ -420,3 +420,23 @@ export const SPECIMENS = {
     phases: ['Cu', 'Si'],
   },
 };
+
+// ---------------------------------------------------------------- 4-quadrant BSE detector
+// Segment sign: +1 added, −1 subtracted, 0 off. Directions are in the image frame (A right, B left, C up, D down).
+export const SEG_DIR = { A: [1, 0], B: [-1, 0], C: [0, 1], D: [0, -1] };
+export function segLabel(seg) {
+  const on = ['A', 'B', 'C', 'D'].filter((k) => seg[k]);
+  if (!on.length) return 'all off';
+  return on.map((k, i) => (seg[k] < 0 ? (i ? ' − ' : '−') : i ? ' + ' : '') + k).join('');
+}
+export function segPreset(seg) {
+  const k = ['A', 'B', 'C', 'D'].map((x) => seg[x]).join(',');
+  return { '1,1,1,1': 'comp', '1,-1,0,0': 'topoX', '0,0,1,-1': 'topoY' }[k] ?? null;
+}
+export function segKind(seg) {
+  const sum = seg.A + seg.B + seg.C + seg.D, dx = seg.A - seg.B, dy = seg.C - seg.D;
+  if (!(seg.A || seg.B || seg.C || seg.D)) return 'no signal';
+  if (sum === 0) return 'topography (difference)';
+  if (dx === 0 && dy === 0) return 'composition';
+  return 'mixed: composition + shading';
+}

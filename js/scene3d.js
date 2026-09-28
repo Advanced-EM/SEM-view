@@ -197,7 +197,8 @@ export class Scene3D {
     for (let i = 0; i < 4; i++) {
       const mt = new THREE.MeshStandardMaterial({ color: 0x2c3440, metalness: 0.7, roughness: 0.35, emissive: 0x6fd6ff, emissiveIntensity: 0, side: THREE.DoubleSide });
       this.bseMats.push(mt);
-      const q = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.62, 16, 1, (i * Math.PI) / 2 + 0.04, Math.PI / 2 - 0.08), mt);
+      // sectors centred on the axes: 0 = A (+x), 1 = C, 2 = B (−x), 3 = D
+      const q = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.62, 16, 1, (i * Math.PI) / 2 - Math.PI / 4 + 0.04, Math.PI / 2 - 0.08), mt);
       q.rotation.x = -Math.PI / 2; this.bse.add(q);
     }
     const arm = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 0.16), M.iron); arm.position.x = 1.8; this.bse.add(arm);
@@ -309,7 +310,11 @@ export class Scene3D {
     // detectors in / out
     A.bse = lerp(A.bse, m === 'bse' ? 1 : 0, k);
     this.bse.position.set((1 - A.bse) * 2.6, Y.tip - 0.06, 0);
-    this.bseMats.forEach((mt, i) => (mt.emissiveIntensity = m === 'bse' ? (S.bseMode === 'topo' && i % 2 ? 0.15 : 0.45) : 0));
+    this.bseMats.forEach((mt, i) => {
+      const sg = S.seg[['A', 'C', 'B', 'D'][i]];
+      mt.emissive.set(sg < 0 ? 0xff7d7d : 0x6fd6ff);
+      mt.emissiveIntensity = m === 'bse' && sg ? 0.5 : 0;
+    });
     A.ebsd = lerp(A.ebsd, ebsdOn ? 1 : 0, k);
     this.ebsd.position.set(0, A.sy - 0.25, lerp(-3.4, -1.25, A.ebsd));
     this.ebsd.visible = A.ebsd > 0.02;

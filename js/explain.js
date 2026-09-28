@@ -22,7 +22,7 @@ export function modeInfo(S, sim) {
     case 'bse': return {
       title: 'Seeing <em>atomic number</em>',
       body: `<b>Backscattered electrons</b> (BSE) are primary electrons that bounce back out after elastic scattering from nuclei, still carrying much of their energy. Heavier atoms send more back: η rises with Z (right), so brightness maps <b>composition</b>. A four-quadrant solid-state detector under the pole piece adds all segments for composition (A+B+C+D) or subtracts opposite ones for <b>topography</b> (A−B). In crystals the backscatter yield also depends on how the beam lines up with atomic rows: <b>channelling contrast</b> makes grains in polished metals light up differently.`,
-      stats: [['η here', f2(P.eta(m.Z, (S.tilt * Math.PI) / 180)), `${m.name}`], ['BSE escape depth', fmtLen(0.3 * R), '≈ 0.3 × range'], ['Mode', S.bseMode === 'topo' ? 'A − B' : 'A + B + C + D', S.bseMode === 'topo' ? 'topography' : 'composition']],
+      stats: [['η here', f2(P.eta(m.Z, (S.tilt * Math.PI) / 180)), `${m.name}`], ['BSE escape depth', fmtLen(0.3 * R), '≈ 0.3 × range'], ['Segments', P.segLabel(S.seg), P.segKind(S.seg)]],
     };
     case 'ebsd': return {
       title: 'Crystal orientation <em>from Kikuchi bands</em>',
@@ -68,7 +68,17 @@ export function changeText(key, S, sim) {
     case 'autofocus': return ['Auto focus & stigmation', 'The software swept the focus and stigmator to maximise image sharpness (the gradient/FFT metric shown on the image), the same principle as SMART resolution measurement on a gold-on-carbon standard.'];
     case 'dwell': return ['Dwell time', `<b>${S.dwell} µs</b> per pixel: ${Math.round(S.current * 6.24 * S.dwell)} primary electrons land on each pixel. Signal-to-noise grows as √(dwell); slow scans also give insulators more time to charge and let drift smear the image.`];
     case 'etdBias': return ['ETD grid bias', S.etdBias >= 0 ? `<b>+${S.etdBias} V</b> on the Faraday cage attracts low-energy secondaries from all around, even from behind obstacles: soft shadows, mostly SE contrast.` : `<b>${S.etdBias} V</b> repels secondaries: only backscattered electrons flying straight at the detector are counted. Hard shadows, like side-lit topography.`];
-    case 'bseMode': return ['BSE detector mode', S.bseMode === 'topo' ? '<b>A − B</b>: subtracting opposite segments cancels atomic-number contrast and keeps the difference caused by surface slopes, a shaded-relief image.' : '<b>A + B + C + D</b>: summing all segments cancels slope effects and keeps atomic-number (composition) and channelling contrast.'];
+    case 'bseMode':
+    case 'seg': {
+      const k = P.segKind(S.seg), lab = P.segLabel(S.seg);
+      const txt = {
+        composition: 'Summing opposite segments cancels the slope effects (a tilted facet sends more electrons to one side and fewer to the other), leaving <b>atomic-number</b> and <b>channelling</b> contrast.',
+        'topography (difference)': 'Subtracting segments cancels what they have in common, atomic-number contrast, and keeps the imbalance caused by <b>surface slopes</b>: a shaded-relief image lit from the direction of the positive segment(s).',
+        'mixed: composition + shading': 'An unbalanced combination: composition contrast plus a directional shading from the segments that don’t cancel. A single segment behaves like an oblique light source.',
+        'no signal': 'All segments are off: nothing is detected. Click a quadrant to switch it on.',
+      }[k];
+      return ['BSE segments', `<b>${lab}</b>. ${txt}`];
+    }
     case 'spec': return ['Specimen', sim.spec.note];
     case 'clarity': return S.clarity === 'real' ? ['Physically realistic', 'Grayscale, true shot noise at the chosen current and dwell, raw Kikuchi patterns with background, accumulated EDS counts.'] : ['Educational clarity', 'Tinted images with 12× less noise, background-corrected patterns with zone axes labelled, and clean element maps.'];
     case 'mapN': return ['Map size', `${S.mapN}×${S.mapN} points, a step of ${fmtLen(S.fov / S.mapN)}. Real EBSD maps run at hundreds to thousands of patterns per second.`];

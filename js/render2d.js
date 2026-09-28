@@ -122,7 +122,7 @@ function drawImage(sim, S, m, s) {
   scaleBar(ctx, W, H, S.fov, dpr);
   // data bar, like a real SEM
   const mag = Math.round(127000 / S.fov);
-  label(ctx, `${S.kV} kV · ×${mag.toLocaleString()} · WD ${S.wd} mm · ${S.mode === 'se' ? 'ETD' : S.mode === 'inlens' ? 'In-lens' : S.bseMode === 'topo' ? 'BSE A−B' : 'BSE A+B'}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
+  label(ctx, `${S.kV} kV · ×${mag.toLocaleString()} · WD ${S.wd} mm · ${S.mode === 'se' ? 'ETD' : S.mode === 'inlens' ? 'In-lens' : `BSE ${P.segLabel(S.seg)}`}`, 8 * dpr, H - 14 * dpr, dpr, { color: C.muted, size: 9 });
   if (I.charging) label(ctx, 'CHARGING: insulator above E2', 8 * dpr, 16 * dpr, dpr, { color: C.warm });
   label(ctx, `sharpness ${(I.sharp * 100).toFixed(1)}`, W - 8 * dpr, 16 * dpr, dpr, { color: C.muted, size: 9, align: 'right' });
   if (S.mode === 'se') drawYieldCurves(sim, S, s);
@@ -204,17 +204,19 @@ function drawEtaCurve(sim, S, s) {
   label(q, 'backscatter coefficient η  vs  Z', x0, 8 * d, d, { color: C.muted, size: 9 });
   // quadrant detector
   const cx = s.W * 0.83, cy = s.H / 2 + 6 * d, R = Math.min(s.W * 0.13, s.H * 0.36);
+  layout.quad = { cx: cx / d, cy: cy / d, R: R / d };
   const segs = [['A', 0], ['B', Math.PI], ['C', Math.PI / 2], ['D', -Math.PI / 2]];
   for (const [nm, a] of segs) {
-    const on = S.bseMode === 'comp' || nm === 'A' || nm === 'B';
-    q.fillStyle = on ? (S.bseMode === 'topo' && nm === 'B' ? 'rgba(255,125,125,0.35)' : 'rgba(111,214,255,0.3)') : 'rgba(255,255,255,0.05)';
+    const sg = S.seg[nm];
+    q.fillStyle = sg > 0 ? 'rgba(111,214,255,0.38)' : sg < 0 ? 'rgba(255,125,125,0.4)' : 'rgba(255,255,255,0.04)';
     q.beginPath(); q.moveTo(cx, cy); q.arc(cx, cy, R, a - Math.PI / 4, a + Math.PI / 4); q.closePath(); q.fill();
-    q.strokeStyle = 'rgba(255,255,255,0.3)'; q.stroke();
-    font(q, 10, d, 600); q.fillStyle = C.text; q.textAlign = 'center'; q.textBaseline = 'middle';
-    q.fillText(nm, cx + Math.cos(a) * R * 0.62, cy - Math.sin(a) * R * 0.62);
+    q.strokeStyle = 'rgba(255,255,255,0.3)'; q.lineWidth = 1 * d; q.stroke();
+    font(q, 11, d, 600); q.fillStyle = sg ? C.text : C.dim; q.textAlign = 'center'; q.textBaseline = 'middle';
+    q.fillText(`${sg > 0 ? '+' : sg < 0 ? '−' : ''}${nm}`, cx + Math.cos(a) * R * 0.62, cy - Math.sin(a) * R * 0.62);
   }
   q.fillStyle = C.bg; q.beginPath(); q.arc(cx, cy, R * 0.25, 0, 7); q.fill(); q.textAlign = 'left';
-  label(q, S.bseMode === 'topo' ? 'A − B: topography' : 'A + B + C + D: composition', cx, 12 * d, d, { color: C.accent, size: 9, align: 'center' });
+  label(q, `${P.segLabel(S.seg)}: ${P.segKind(S.seg)}`, cx, 12 * d, d, { color: C.accent, size: 9, align: 'center' });
+  label(q, 'click a segment: + / − / off', cx, s.H - 12 * d, d, { color: C.muted, size: 8.5, align: 'center' });
 }
 
 // ------------------------------------------------------------------ EBSD / TKD maps

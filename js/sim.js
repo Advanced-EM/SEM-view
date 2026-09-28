@@ -35,7 +35,7 @@ export class Sim {
   get spec() { return SP[this.S.spec]; }
   get probe() { return P.probe(this.S); }
   invalidate(key) {
-    const only = { etdBias: ['img'], bseMode: ['img'], mapView: [], edsSel: [], dwell: ['img'], hover: [] };
+    const only = { etdBias: ['img'], bseMode: ['img'], seg: ['img'], mapView: [], edsSel: [], dwell: ['img'], hover: [] };
     for (const k of only[key] ?? ['img', 'map', 'eds', 'mc']) this.stale[k] = 1;
     this.version++;
   }
@@ -68,7 +68,7 @@ export class Sim {
     const Rko = P.rangeKO(dom.rho ? dom : P.MAT.Ni, E); // µm
     const sBSE = (0.25 * Rko) / px, sEdge = Math.max(0.6, (0.15 * Rko) / px);
     const Hb = P.clamp(sEdge, 0, 60) > 0.35 ? blurred(H, n, n, Math.min(60, sEdge)) : H;
-    const se1 = new Float32Array(n * n), bse = new Float32Array(n * n), topo = new Float32Array(n * n), face = new Float32Array(n * n), edge = new Float32Array(n * n);
+    const se1 = new Float32Array(n * n), bse = new Float32Array(n * n), nxA = new Float32Array(n * n), nyA = new Float32Array(n * n), face = new Float32Array(n * n), edge = new Float32Array(n * n);
     const beamS = mat3.tmv(T, [0, 0, -1]);
     const det = P.norm([-1, 0.25, 0.6]); // ETD sits to the left, above the sample
     const coatM = P.MAT.C;
@@ -92,7 +92,7 @@ export class Sim {
           et *= 1 - ch - 0.04 * b[2];
         }
         bse[k] = et;
-        topo[k] = et * (nM[0] * 1.2);
+        nxA[k] = nM[0]; nyA[k] = nM[1];
         face[k] = clamp(0.55 + 0.7 * P.dot(nM, det), 0.15, 1.25);
         edge[k] = Math.max(0, H[k] - Hb[k]) / Math.max(1e-6, 0.15 * Rko);
       }
@@ -115,7 +115,17 @@ export class Sim {
       const SE1 = se1[k] * (1 + 0.8 * Math.min(3, edge[k])), SE2 = dN * beta * se2src[k];
       let v;
       if (mode === 'inlens') v = (SE1 + 0.35 * SE2) * (1 / (1 + (S.wd / 5) ** 2));
-      else if (mode === 'bse' || mode === 'ebsd' || mode === 'tkd') v = S.bseMode === 'topo' ? 0.5 + 2.2 * topo[k] + 0.3 * bseB[k] : bseB[k];
+      else if (mode === 'bse') {
+        // each quadrant sees a quarter of the backscattered electrons, weighted toward its own direction
+        // by the local surface slope; opposite segments differ only through that slope
+        v = 0;
+        for (const q of ['A', 'B', 'C', 'D']) {
+          const sg = S.seg[q];
+          if (!sg) continue;
+          const [ux, uy] = P.SEG_DIR[q];
+          v += sg * (0.25 * bseB[k] + 0.6 * bse[k] * (nxA[k] * ux + nyA[k] * uy));
+        }
+      } else if (mode === 'ebsd' || mode === 'tkd') v = bseB[k];
       else if (S.etdBias < 0) v = 0.6 * bse[k] * face[k] * face[k] * shadow[k];
       else v = (SE1 + SE2) * face[k] * shadow[k] * (0.5 + 0.5 * clamp(S.etdBias / 250, 0, 1)) + 0.2 * bse[k] * face[k] * shadow[k];
       out[k] = v;
