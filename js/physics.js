@@ -46,28 +46,26 @@ export function wavelengthA(kV) { const V = kV * 1e3; return 12.2643 / Math.sqrt
 
 // Convergence semi-angle at the specimen: set by the aperture, demagnified onto a working distance.
 export const convAngle = (S) => S.aperture * 0.2e-3 * (7 / (S.wd + 2));
-// Probe diameter from brightness, aberrations and diffraction (quadrature sum, FW50-like).
+// The instrument (gun and lens) numbers come from the instrument profile (js/profile.js) when there is one.
+const GUN = { Br: 1e8, dE: 0.7, CsK: 0.9, CcK: 1.1 };
+export const gunOf = (S) => (S.profile ? { Br: S.profile.Br, dE: S.profile.dE, CsK: S.profile.CsK, CcK: S.profile.CcK } : GUN);
+// Probe diameter from brightness, aberrations and diffraction (quadrature sum, FW50-like). An off-axis
+// aperture (apertureOffset: the alignment knobs minus a hidden misalignment, µm) adds coma-like blur.
 export function probe(S) {
-  const V = S.kV * 1e3, I = S.current * 1e-12; // A
-  const Br = 1e8; // reduced brightness, A m⁻² sr⁻¹ V⁻¹ (Schottky FEG)
-  const alpha = convAngle(S); // rad
-  const Cs = 0.9e-3 * Math.pow(S.wd / 4, 1.5), Cc = 1.1e-3 * Math.pow(S.wd / 4, 1.1); // m
-  const dE = 0.7; // eV
-  const lam = wavelengthA(S.kV) * 1e-10;
-  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * Br * V)) / alpha;
-  const ds = 0.5 * Cs * alpha ** 3;
-  const dc = Cc * (dE / V) * alpha;
-  const dd = (1.22 * lam) / alpha;
-  const d = Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd);
-  return { alpha, Cs, Cc, dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: d * 1e9 }; // nm
+  const r = probeVsAlpha(S, convAngle(S));
+  const off = apertureOffset(S), dm = 0.06 * Math.hypot(off[0], off[1]) * convAngle(S) * 1e3; // nm
+  const d = Math.sqrt(r.d * r.d + dm * dm);
+  return { ...r, alpha: convAngle(S), dm, d };
 }
 // Probe size as a function of α with everything else fixed (for the optimisation curve).
 export function probeVsAlpha(S, alpha) {
-  const V = S.kV * 1e3, I = S.current * 1e-12, Br = 1e8;
-  const Cs = 0.9e-3 * Math.pow(S.wd / 4, 1.5), Cc = 1.1e-3 * Math.pow(S.wd / 4, 1.1), lam = wavelengthA(S.kV) * 1e-10;
-  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * Br * V)) / alpha, ds = 0.5 * Cs * alpha ** 3, dc = Cc * (0.7 / V) * alpha, dd = (1.22 * lam) / alpha;
-  return { dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd) * 1e9 };
+  const g = gunOf(S), V = S.kV * 1e3, I = S.current * 1e-12;
+  const Cs = g.CsK * 1e-3 * Math.pow(S.wd / 4, 1.5), Cc = g.CcK * 1e-3 * Math.pow(S.wd / 4, 1.1), lam = wavelengthA(S.kV) * 1e-10;
+  const dg = Math.sqrt((4 * I) / (Math.PI * Math.PI * g.Br * V)) / alpha, ds = 0.5 * Cs * alpha ** 3, dc = Cc * (g.dE / V) * alpha, dd = (1.22 * lam) / alpha;
+  return { Cs, Cc, dg: dg * 1e9, ds: ds * 1e9, dc: dc * 1e9, dd: dd * 1e9, d: Math.sqrt(dg * dg + ds * ds + dc * dc + dd * dd) * 1e9 };
 }
+// Where the beam-limiting aperture sits relative to the optic axis (µm): the knobs minus the hidden error.
+export const apertureOffset = (S) => [(S.apX ?? 0) - (S.mis?.ap?.[0] ?? 0), (S.apY ?? 0) - (S.mis?.ap?.[1] ?? 0)];
 
 // ---------------------------------------------------------------- materials
 // dmax/Emax: secondary-electron yield maximum and its energy; cond: conductor; E2: second crossover (δ+η = 1)
@@ -80,6 +78,7 @@ export const MAT = {
   Si: { name: 'Silicon', Z: 14, A: 28.09, rho: 2.33, dmax: 1.1, Emax: 0.25, cond: true, comp: { Si: 1 }, cryst: 'dia', a: 5.431, color: '#7f8fa3' },
   SiO2: { name: 'Silicon dioxide', Z: 10.8, A: 20.0, rho: 2.2, dmax: 2.9, Emax: 0.42, cond: false, E2: 2.1, comp: { Si: 0.333, O: 0.667 }, color: '#5a6e86' },
   Cu: { name: 'Copper', Z: 29, A: 63.55, rho: 8.96, dmax: 1.3, Emax: 0.6, cond: true, comp: { Cu: 1 }, cryst: 'fcc', a: 3.615, color: '#e0915a' },
+  Au: { name: 'Gold', Z: 79, A: 197.0, rho: 19.3, dmax: 1.5, Emax: 0.7, cond: true, comp: { Au: 1 }, color: '#f0c95a' },
   W: { name: 'Tungsten', Z: 74, A: 183.8, rho: 19.3, dmax: 1.4, Emax: 0.65, cond: true, comp: { W: 1 }, color: '#e6e6f0' },
   Al: { name: 'Aluminium', Z: 13, A: 26.98, rho: 2.7, dmax: 0.97, Emax: 0.3, cond: true, comp: { Al: 1 }, cryst: 'fcc', a: 4.05, color: '#aab6c4' },
   Pt: { name: 'Platinum (FIB cap)', Z: 78, A: 195.1, rho: 21.45, dmax: 1.6, Emax: 0.72, cond: true, comp: { Pt: 1 }, color: '#f2f2f2' },
@@ -124,12 +123,15 @@ export const XLINES = [
   { el: 'W', line: 'Lβ', E: 9.672, Ec: 10.207, w: 0.6, y: 0.9 },
   { el: 'Sn', line: 'Lα', E: 3.444, Ec: 3.929, w: 1, y: 0.9 },
   { el: 'Sn', line: 'Lβ', E: 3.663, Ec: 3.929, w: 0.55, y: 0.9 },
+  { el: 'Au', line: 'Mα', E: 2.123, Ec: 2.206, w: 1, y: 0.7 },
+  { el: 'Au', line: 'Lα', E: 9.713, Ec: 11.919, w: 1, y: 0.9 },
   { el: 'Pt', line: 'Mα', E: 2.048, Ec: 2.122, w: 1, y: 0.7 },
   { el: 'Pt', line: 'Lα', E: 9.442, Ec: 11.564, w: 1, y: 0.9 },
 ];
-export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b' };
+export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b', Au: '#f0c95a' };
 export const detEff = (E) => Math.exp(-Math.pow(0.35 / E, 2)) * (1 - Math.exp(-40 / Math.pow(E, 2.4)) * 0) * Math.exp(-E / 60);
-export const edsFWHM = (E) => Math.sqrt(45.7 * 45.7 + 2.355 * 2.355 * 0.115 * 3.8 * E * 1000) / 1000;
+// EDS resolution (keV FWHM) at energy E: electronic noise plus Fano statistics, set by the FWHM at Mn Kα (eV)
+export const edsFWHM = (E, mn = 128) => { const fano = 2.355 * 2.355 * 0.115 * 3.8, noise2 = Math.max(100, mn * mn - fano * 5899); return Math.sqrt(noise2 + fano * E * 1000) / 1000; };
 // Relative ionisation efficiency (Bethe-like) for overvoltage U
 export const ionQ = (U, Ec) => (U > 1 ? Math.log(U) / (U * Ec * Ec) : 0);
 
@@ -387,6 +389,29 @@ export const SPECIMENS = {
       return { h, mat: 'Ni', grain: g.id * 2 + tw.t, ori: tw.O, gb: g.edge };
     },
     phases: ['Ni'],
+  },
+  grid: {
+    id: 'grid', name: 'Cross-grating standard (463 nm)', short: 'Grating', fov: 4, fovMin: 0.2, fovMax: 60, pitch: 0.4630,
+    note: 'A certified calibration standard: a 2160 lines/mm cross grating (463 nm pitch) replicated in carbon and shadowed with gold, with a scatter of gold islands for resolution tests.',
+    sample(x, y, res = 0) {
+      const p = 0.463, u = ((x / p) % 1 + 1) % 1, v = ((y / p) % 1 + 1) % 1;
+      // raised squares with rounded walls; the gold shadowing makes their tops bright in BSE
+      const w = (t) => Math.min(1, Math.max(0, (0.25 - Math.abs(t - 0.5)) / 0.08 + 0.5));
+      const sq = Math.min(w(u), w(v));
+      let h = 0.06 * sq + 0.002 * vnoise(x * 30, y * 30, 8), mat = sq > 0.5 ? 'Au' : 'C';
+      // gold islands (10–40 nm) on the carbon between the squares
+      if (mat === 'C' && res < 0.02) {
+        const c = 0.05, ix = Math.floor(x / c), iy = Math.floor(y / c);
+        for (let j = -1; j <= 1 && mat === 'C'; j++) for (let i = -1; i <= 1; i++) {
+          const gx = ix + i, gy = iy + j;
+          if (hash(gx, gy, 51) > 0.35) continue;
+          const r = c * (0.1 + 0.3 * hash(gx, gy, 52)), px = (gx + hash(gx, gy, 53)) * c, py = (gy + hash(gx, gy, 54)) * c, d2 = (x - px) ** 2 + (y - py) ** 2;
+          if (d2 < r * r) { h += Math.sqrt(r * r - d2); mat = 'Au'; break; }
+        }
+      }
+      return { h, mat, grain: -1, ori: null };
+    },
+    phases: [],
   },
   chip: {
     id: 'chip', name: 'Chip cross-section (FIB)', short: 'Chip', fov: 12, fovMin: 0.3, fovMax: 40,

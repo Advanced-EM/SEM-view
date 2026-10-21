@@ -1,0 +1,17 @@
+# SEM-view session collector (Cloudflare Worker). Deploy: see README.md
+name = "sem-view-collector"
+main = "src/index.js"
+compatibility_date = "2026-01-15"
+workers_dev = true
+
+[vars]
+DATASET_REPO = "rmsreis/sem-view-alignment"
+ALLOWED_ORIGINS = "https://advanced-em.github.io,http://localhost:8768"
+
+# at most 10 sessions per minute from one visitor (keyed on a daily salted hash, nothing stored)
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 10
+  period = 60

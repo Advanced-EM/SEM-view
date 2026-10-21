@@ -64,6 +64,7 @@ export function changeText(key, S, sim) {
     case 'tilt': return ['Stage tilt', `Tilted <b>${S.tilt}°</b>. Tilting increases SE yield (secant law) and the BSE coefficient, and foreshortens the image by cos θ along the tilt axis. EBSD needs ~70° so the backscattered, diffracted electrons head toward the screen.`];
     case 'coated': return ['Carbon coating', S.coated ? 'A few nm of evaporated carbon now drains the charge from insulators to ground. Charging vanishes at any kV, at the cost of burying the finest surface detail.' : 'Uncoated: insulators (alumina, silica) will charge above their second crossover E2 unless you drop the voltage.'];
     case 'focus': return ['Focus', `Defocus <b>${S.focus >= 0 ? '+' : ''}${f2(S.focus)} µm</b> spreads the probe into a disk of diameter 2α·Δf. At this α that’s <b>${fmtLen(2 * pr.alpha * Math.abs(S.focus))}</b>. Tall features also go out of focus: depth of field ≈ 2×(pixel or probe)/α.`];
+    case 'stigX': case 'stigY':
     case 'stig': return ['Stigmator', `Astigmatism focuses the beam at two different heights in two directions, so under- and over-focus smear the image in perpendicular directions. The stigmator’s quadrupole field cancels it. Correct when the image is sharpest, and when going through focus no longer streaks features sideways.`];
     case 'autofocus': return ['Auto focus & stigmation', 'The software swept the focus and stigmator to maximise image sharpness (the gradient/FFT metric shown on the image), the same principle as SMART resolution measurement on a gold-on-carbon standard.'];
     case 'dwell': return ['Dwell time', `<b>${S.dwell} µs</b> per pixel: ${Math.round(S.current * 6.24 * S.dwell)} primary electrons land on each pixel. Signal-to-noise grows as √(dwell); slow scans also give insulators more time to charge and let drift smear the image.`];
@@ -87,6 +88,8 @@ export function changeText(key, S, sim) {
     case 'tkdThick': return ['Foil thickness', `<b>${S.tkdThick} nm</b>. Too thin: few diffracted electrons and weak bands. Too thick: electrons scatter many times and patterns become diffuse. TKD works best around 50–150 nm for metals.`];
     case 'edsSel': return ['Element map', S.edsSel === 'all' ? 'All elements overlaid.' : `Mapping <b>${S.edsSel}</b>. The map is blurred by the X-ray generation volume, not the probe. Drop the kV (keeping enough overvoltage) to sharpen it.`];
     case 'mcMax': return ['Trajectories', `Up to <b>${S.mcMax.toLocaleString()}</b> electrons. The statistics (η, depth profiles) settle as √N.`];
+    case 'apX': case 'apY': { if (S.mis?.ap) return ['Aperture alignment', `Aperture knobs at <b>${f1(S.apX)}, ${f1(S.apY)} µm</b>. The true offset is hidden in this task: watch whether the image still sways with the wobbler.`]; const o = P.apertureOffset(S), r = Math.hypot(o[0], o[1]); return ['Aperture alignment', `The aperture is <b>${f1(r)} µm</b> off the optic axis${r > 3 ? ': the beam crosses the objective off center, so the image walks sideways as the focus changes and the probe picks up ' + f1(pr.dm) + ' nm of extra blur. Switch on the wobbler and turn X and Y until the image only pulses in and out of focus' : ', close enough: the image no longer sways with the wobbler'}.`]; }
+    case 'wobble': return ['Focus wobbler', S.wobble ? 'The focus now swings back and forth a few times a second. If the image <b>moves sideways</b> as well as blurring, the aperture is off axis: center it with Aperture X and Y until it only pulses.' : 'Wobbler off: the focus is back at its set value.'];
     case 'mode': return null;
   }
   return null;
@@ -98,7 +101,8 @@ export function dataRows(S, sim) {
     ['Accelerating voltage', `${S.kV} kV`],
     ['Probe current', S.current >= 1000 ? `${f1(S.current / 1000)} nA` : `${Math.round(S.current)} pA`],
     ['Convergence α', `${f1(pr.alpha * 1000)} mrad`],
-    ['Probe diameter', `${f1(pr.d)} nm`],
+    // during a training task the readout is the nominal probe: the extra blur of a hidden misalignment is not shown
+    ['Probe diameter', `${f1(S.mis ? Math.sqrt(pr.d * pr.d - pr.dm * pr.dm) : pr.d)} nm`],
     ['  source / Cs / Cc / diffr.', `${f1(pr.dg)} / ${f1(pr.ds)} / ${f1(pr.dc)} / ${f1(pr.dd)}`],
     ['Cs / Cc at this WD', `${f2(pr.Cs * 1000)} / ${f2(pr.Cc * 1000)} mm`],
     ['Depth of field', fmtLen(2 * Math.max(S.fov / 256, pr.d / 1000) / pr.alpha)],
