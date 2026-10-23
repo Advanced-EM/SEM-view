@@ -22,7 +22,7 @@ export const SUPPORT = {
   subscribe: 'https://tem-view-collector.tem-view.workers.dev/subscribe',
 };
 
-// the sister exhibit, and the physical Console that drives both (same USB protocol)
+// the sibling exhibit, and the physical Console that drives both (same USB protocol)
 export const LINKS = {
   tem: 'https://advanced-em.github.io/TEM-view/',
   console: 'https://advanced-em.github.io/TEM-view/console/',

@@ -588,8 +588,41 @@ function exportData() {
   explain('exported');
 }
 
-// ------------------------------------------------------------------ results panel
-function setExpanded(on) { document.body.classList.toggle('detBig', on); $('#btnExpand').setAttribute('aria-pressed', on); sim.version++; }
+// ------------------------------------------------------------------ results panel: enlarge in place, or pop out into a separate window
+let redraw = false;
+function setExpanded(on) { document.body.classList.toggle('detBig', on); $('#btnExpand').setAttribute('aria-pressed', on); redraw = true; }
+let pop = null;
+function openPopout() {
+  if (pop && !pop.closed) { pop.focus(); return; }
+  pop = window.open('', 'sem-results', 'popup,width=1320,height=760');
+  if (!pop) { setExpanded(true); return; } // pop-ups blocked: enlarge in place instead
+  pop.document.title = 'Scanning with Electrons · results';
+  pop.document.body.innerHTML = `<style>
+    html, body { margin: 0; height: 100%; background: #05070a; color: #e9edf2; font: 500 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+    body { display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; gap: 8px; }
+    header { display: flex; gap: 16px; } header span:last-child { color: #8a94a3; margin-left: auto; }
+    main { flex: 1; display: flex; gap: 12px; min-height: 0; }
+    canvas { border-radius: 8px; background: #06080b; height: 100%; }
+    #m { aspect-ratio: 1; max-width: 58%; } #s { flex: 1; min-width: 0; }
+    @media (max-aspect-ratio: 4/3) { main { flex-direction: column; } #m { height: auto; width: 100%; max-width: none; } #s { height: 40%; flex: none; } }
+  </style><header><span id="t1"></span><span id="t2"></span></header><main><canvas id="m"></canvas><canvas id="s"></canvas></main>`;
+  // the same guard as in the page: narrow panels must never pass a negative arc radius
+  const proto = pop.CanvasRenderingContext2D.prototype, arc = proto.arc;
+  proto.arc = function (x, y, r, ...rest) { return arc.call(this, x, y, Math.max(0, r), ...rest); };
+  pop.addEventListener('resize', () => (redraw = true));
+  pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') pop.close(); });
+  $('#btnPopout').classList.add('on');
+  redraw = true;
+}
+function drawPopout() {
+  if (!pop) return;
+  if (pop.closed) { pop = null; $('#btnPopout').classList.remove('on'); return; }
+  const d = pop.document, m = d.getElementById('m'), sc = d.getElementById('s');
+  if (!m) return;
+  d.getElementById('t1').textContent = $('#detTitle').textContent;
+  d.getElementById('t2').textContent = $('#secTitle').textContent;
+  R2.draw(sim, S, m, sc, hoverIdx);
+}
 
 // ------------------------------------------------------------------ wiring
 function wire() {
@@ -622,6 +655,7 @@ function wire() {
   $('#btnGallery').addEventListener('click', () => { $('#gallery').hidden = false; acq.render($('#gallery .gBody')); });
   $('#gallery').addEventListener('click', (e) => { if (e.target.id === 'gallery' || e.target.closest('.close')) $('#gallery').hidden = true; });
   $('#btnExpand').addEventListener('click', () => setExpanded(!document.body.classList.contains('detBig')));
+  $('#btnPopout').addEventListener('click', openPopout);
   const readFile = (inp, fn, what) => inp.addEventListener('change', async (e) => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { fn(await f.text()); } catch (err) { flashChange(`Could not ${what} ${esc(f.name)}`, esc(err.message)); } });
   readFile($('#fileSession'), loadSessionFile, 'load');
   readFile($('#fileReplay'), (t) => scn.loadReplay(t), 'replay');
@@ -776,7 +810,9 @@ function frame(now) {
     scn.tick();
     if (!ide.running) sim.update(dt);
     const live = S.clarity === 'real' && IMG.includes(S.mode) && !S.paused;
-    if (sim.version !== lastVer || (live && now - lastDraw > 90)) {
+    if (sim.version !== lastVer || (live && now - lastDraw > 90) || redraw) {
+      redraw = false;
+      drawPopout(); // first, so the page's own canvases leave R2.layout set for their clicks and hovers
       R2.draw(sim, S, mainCv, secCv, hoverIdx);
       lastVer = sim.version; lastDraw = now;
       if (IMG.includes(S.mode)) { scene.specTex.image = mainCv; scene.specTex.needsUpdate = true; }
