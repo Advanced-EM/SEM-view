@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-03 AI Agents, MCP and Skills · Scanning with Electrons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=7">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-03</span><span>AI agents for electron microscopy</span></div>
+    <h1>AI agents,<br><em>MCP and skills</em></h1>
+    <p class="sub" style="max-width:5.6in">Connect Claude, OpenAI Codex, Ollama or another MCP client to SEM-view; use emskills skills with an agent; contribute a skill; and test commands beyond the built-in ones.</p>
+  </div>
+  <div class="shot"><img src="fig/sop3_cover_ui.jpg" alt=""></div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-03</b>, version 1.0, October 2026<br>For users and developers of SEM-view and emskills<br>Simulation only: nothing here controls a real microscope</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · emskills · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope and architecture -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Scope and overview</span></div>
+  <h2>Scope and overview</h2>
+  <p class="lede">The Model Context Protocol (MCP) lets an AI client call tools on your computer. SEM-view ships an MCP server, <b>semview-mcp</b>, with tools to simulate data headlessly and to drive an open exhibit. emskills skills describe analysis tasks that an agent can run on that data. The steps: install the server, register it with an AI client, connect the exhibit, test commands, use skills, and contribute a skill.</p>
+
+  <svg class="diagram" viewBox="0 0 700 190" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" font-size="11">
+    <defs><marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 8 4 0 8z" fill="#5d6773"/></marker></defs>
+    <g fill="#fff" stroke="#1a1f26" stroke-width="0.8">
+      <rect x="4" y="40" width="150" height="92"/><rect x="250" y="40" width="170" height="92"/><rect x="520" y="40" width="176" height="92"/>
+    </g>
+    <g fill="#1a1f26">
+      <text x="14" y="60" font-weight="600">AI client</text>
+      <text x="14" y="78">Claude Code or Desktop</text><text x="14" y="94">OpenAI Codex CLI</text><text x="14" y="110">ollmcp + Ollama model</text><text x="14" y="126">LM Studio, Gemini CLI…</text>
+      <text x="260" y="60" font-weight="600">semview-mcp server</text>
+      <text x="260" y="78">tools/semview-mcp/server.mjs</text><text x="260" y="94">simulate, twin (headless)</text><text x="260" y="110">exhibit_* (live)</text><text x="260" y="126">listens on 127.0.0.1:8792</text>
+      <text x="530" y="60" font-weight="600">SEM-view exhibit</text>
+      <text x="530" y="78">in Chrome or Edge</text><text x="530" y="94">Controls → Voice and agent</text><text x="530" y="110">→ Connect agent</text><text x="530" y="126">AI mode command bar ( / )</text>
+    </g>
+    <g stroke="#5d6773" stroke-width="1" fill="none"><line x1="156" y1="86" x2="246" y2="86" marker-start="url(#a)" marker-end="url(#a)"/><line x1="422" y1="86" x2="516" y2="86" marker-start="url(#a)" marker-end="url(#a)"/></g>
+    <g fill="#5d6773" font-size="10"><text x="168" y="78">stdio (MCP)</text><text x="438" y="78">WebSocket</text><text x="428" y="104">local only</text></g>
+    <g fill="#fff" stroke="#1a1f26" stroke-width="0.8"><rect x="4" y="150" width="150" height="34"/></g>
+    <text x="14" y="171" fill="#1a1f26"><tspan font-weight="600">emskills</tspan> SKILL.md files</text>
+    <line x1="79" y1="148" x2="79" y2="134" stroke="#5d6773" marker-end="url(#a)"/>
+    <text x="90" y="145" fill="#5d6773" font-size="10">instructions for the agent</text>
+  </svg>
+
+  <div class="cols">
+    <div>
+      <h3>Requirements</h3>
+      <ul class="plain">
+        <li>Node.js 20 or later, and git.</li>
+        <li>A copy of the SEM-view repository: <code>git clone https://github.com/Advanced-EM/SEM-view</code></li>
+        <li>An MCP client (Step 2).</li>
+        <li>Chrome or Edge for the exhibit. Some browsers block a web page from connecting to a local server.</li>
+        <li>For contributing skills: Python 3.10 or later and a GitHub account.</li>
+      </ul>
+
+    </div>
+    <div>
+      <h3>Safety and privacy</h3>
+      <ul class="plain">
+        <li>The server listens on 127.0.0.1 only and accepts connections only from the exhibit's site and localhost.</li>
+        <li>The exhibit connects only when you select <b>Connect agent</b>, and it shows when an agent is connected.</li>
+        <li>While a training task is running, the exhibit refuses changes from the agent, so recorded practice stays your own.</li>
+        <li>With a cloud model (Claude, OpenAI), your prompts and the tool results, including images, go to that provider. With Ollama, everything stays on your computer.</li>
+        <li>Speech recognition in Chrome is processed by Google. Typed commands are not sent anywhere unless an agent is connected.</li>
+      </ul>
+      <div class="note caution"><b>Caution.</b> Do not expose port 8792 to a network or tunnel it to the internet. Anyone who can reach it could drive the exhibit.</div>
+
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · steps 1 and 2 -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Steps 1 and 2 of 6</span></div>
+  <div class="step">Step 1</div>
+  <h2>Install the server</h2>
+  <pre><code>git clone https://github.com/Advanced-EM/SEM-view
+cd SEM-view/tools/semview-mcp
+npm install
+node test.mjs          # headless check: all lines should start with "ok"</code></pre>
+  <p>Note the full path of <code>server.mjs</code>; the client configurations below need it. In the examples it is written <code>/PATH/TO/SEM-view/tools/semview-mcp/server.mjs</code>.</p>
+
+  <div class="step" style="margin-top:10pt">Step 2</div>
+  <h2>Register the server with your AI client</h2>
+  <p>The client starts the server itself when it starts. Register it with one client and restart that client.</p>
+  <div class="cols">
+    <div>
+      <h3>Claude Code</h3>
+      <pre><code>claude mcp add --scope user semview -- \
+  node /PATH/TO/SEM-view/tools/semview-mcp/server.mjs</code></pre>
+      <h3>Claude Desktop</h3>
+      <p>Edit <code>claude_desktop_config.json</code> (macOS: <code>~/Library/Application Support/Claude/</code>; Windows: <code>%APPDATA%\Claude\</code>), keeping any servers already listed:</p>
+      <pre><code>{
+  "mcpServers": {
+    "semview": {
+      "command": "node",
+      "args": ["/PATH/TO/SEM-view/tools/semview-mcp/server.mjs"]
+    }
+  }
+}</code></pre>
+      <p>The same <code>mcpServers</code> block works in Cursor (<code>~/.cursor/mcp.json</code>), LM Studio (<code>mcp.json</code>) and Gemini CLI (<code>~/.gemini/settings.json</code>).</p>
+    </div>
+    <div>
+      <h3>OpenAI Codex CLI</h3>
+      <p>Add to <code>~/.codex/config.toml</code>:</p>
+      <pre><code>[mcp_servers.semview]
+command = "node"
+args = ["/PATH/TO/SEM-view/tools/semview-mcp/server.mjs"]</code></pre>
+      <div class="note"><b>Note.</b> The ChatGPT app connects only to remote MCP servers at an HTTPS address. semview-mcp is a local server, so use Codex CLI or another local client with OpenAI models. Do not tunnel the server to the internet to make it reachable.</div>
+      <h3>Ollama (local models)</h3>
+      <p>Ollama has no MCP client of its own. Use <b>ollmcp</b> (MCP Client for Ollama) with a model that supports tool calls, such as <code>qwen2.5:7b</code> or <code>qwen3</code>. Save the Claude Desktop block above as <code>servers.json</code>, then:</p>
+      <pre><code>pip install ollmcp
+ollama pull qwen2.5:7b
+ollmcp --model qwen2.5:7b --servers-json servers.json</code></pre>
+      <p>Small local models call tools less reliably. Give short, direct requests, one step at a time.</p>
+    </div>
+  </div>
+  <p class="result"><b>Result.</b> The client lists the <code>semview</code> server with ten tools. In Claude Code, run <code>claude mcp list</code>; in other clients, look in the tools or connectors menu.</p>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · step 3 connect and verify -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Step 3 of 6</span></div>
+  <div class="step">Step 3</div>
+  <h2>Connect the exhibit and verify</h2>
+  <div class="side" style="grid-template-columns:1fr 2.6in">
+    <div>
+      <ol class="proc">
+        <li>Start the AI client from Step 2. This also starts semview-mcp.</li>
+        <li>Open the exhibit in Chrome or Edge: <code>https://advanced-em.github.io/SEM-view/</code>, or a local copy (<code>python3 -m http.server 8767</code> in the repository folder, then <code>http://localhost:8767</code>).</li>
+        <li>In the controls panel, scroll to <b>Voice and agent</b> and select <b>Connect agent</b>. The button changes to <b>Agent connected · Disconnect</b> (Fig. 9).</li>
+        <li>In the AI client, ask: <i>“What is the exhibit showing?”</i> The agent calls <code>exhibit_status</code> and reports the mode, specimen and optics.</li>
+        <li>Ask for a change: <i>“Switch to BSE and load nickel.”</i> The exhibit changes, and the agent reports what it did.</li>
+      </ol>
+      <p class="result"><b>Result.</b> The exhibit shows <b>Agent connected</b>, and the agent can read and change it.</p>
+      <h3>Live test from the command line</h3>
+      <pre><code>cd SEM-view/tools/semview-mcp
+node test.mjs --live    # then select Connect agent within 90 s</code></pre>
+      <p>This drives an open exhibit without an AI client: it changes settings, acquires, and checks the answers.</p>
+      <div class="note"><b>Ports.</b> The exhibit tries <code>ws://127.0.0.1:8792</code>, then <code>8793</code>. Each AI client starts its own copy of the server, and only one copy can use a port. If two clients are running, the exhibit connects to whichever server holds 8792. Run one client at a time, or start a second one with <code>SEMVIEW_PORT=8793</code> in its environment.</div>
+      <table class="t">
+        <tr><th>Variable</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>SEMVIEW_PORT</code></td><td>8792</td><td>Local WebSocket port for the exhibit</td></tr>
+        <tr><td><code>SEMVIEW_ORIGINS</code></td><td>exhibit site</td><td>Other web origins allowed to connect, besides localhost</td></tr>
+        <tr><td><code>SEMVIEW_OUT</code></td><td>./semview-out</td><td>Where simulations and saved acquisitions are written</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig ui"><img src="fig/sop3_panel.jpg" alt=""><figcaption><b>Fig. 9.</b> Controls → Voice and agent, with an agent connected.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · step 4 commands -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Step 4 of 6</span></div>
+  <div class="step">Step 4</div>
+  <h2>Test built-in and beyond-built-in commands</h2>
+  <p class="lede">Open the command bar with the brain button at the top of the controls, or press <kbd>/</kbd>. Hold <kbd>M</kbd> to say a command instead of typing it. The exhibit handles each sentence in one of four ways.</p>
+  <table class="t">
+    <tr><th>Sentence</th><th>What happens</th><th>Agent needed</th></tr>
+    <tr><td>Exact built-in command</td><td>Runs at once (Fig. 10a)</td><td>No</td></tr>
+    <tr><td>Close miss or misspelling</td><td>“Did you mean…?” with buttons; answer yes, no, or “the second one” (Fig. 10b)</td><td>No</td></tr>
+    <tr><td>Anything else, with an agent connected</td><td>Passed to the agent: “Asked the agent…” (Fig. 10c). The agent receives it through <code>exhibit_wait_for_voice</code> and answers with <code>exhibit_say</code>, acting with the other tools if asked</td><td>Yes</td></tr>
+    <tr><td>Anything else, no agent</td><td>Not understood; the exhibit lists examples (Fig. 10d)</td><td>No</td></tr>
+  </table>
+  <div class="figs2">
+    <figure class="fig ui"><img src="fig/sop3_cmd_exact.jpg" alt=""><figcaption><b>Fig. 10a.</b> Built-in commands run directly.</figcaption></figure>
+    <figure class="fig ui"><img src="fig/sop3_cmd_confirm.jpg" alt=""><figcaption><b>Fig. 10b.</b> A misspelled command is confirmed before it runs.</figcaption></figure>
+    <figure class="fig ui"><img src="fig/sop3_cmd_agent.jpg" alt=""><figcaption><b>Fig. 10c.</b> A question goes to the connected agent.</figcaption></figure>
+    <figure class="fig ui"><img src="fig/sop3_cmd_unknown.jpg" alt=""><figcaption><b>Fig. 10d.</b> Without an agent, unknown sentences are not run.</figcaption></figure>
+  </div>
+  <h3>Starting the agent's listening loop</h3>
+  <p>The agent receives sentences only while it is waiting for them. Tell it once, in the AI client:</p>
+  <pre><code>Listen to me in the exhibit: call exhibit_wait_for_voice, answer each question with exhibit_say in two or
+three sentences, use the other semview tools when I ask for something, and keep listening until I say stop.</code></pre>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · step 4 continued: test plan -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Step 4 of 6, continued</span></div>
+  <h2>Test plan</h2>
+  <p class="lede">Run these in order after Step 3, with the listening loop running. Tick each row that behaves as expected.</p>
+  <table class="t">
+    <tr><th></th><th>Type or say</th><th>Expected</th></tr>
+    <tr><td class="box"></td><td>switch to BSE</td><td>Mode changes at once; caption “Mode: BSE”</td></tr>
+    <tr><td class="box"></td><td>load nickel and acquire</td><td>Specimen changes and the detectors are recorded; caption lists both</td></tr>
+    <tr><td class="box"></td><td>swich to bse</td><td>“Did you mean switch to bse?”; “yes” runs it</td></tr>
+    <tr><td class="box"></td><td>focus plus zero point five</td><td>Focus set to +0.5 µm</td></tr>
+    <tr><td class="box"></td><td>why do we tilt to 70 degrees for EBSD?</td><td>“Asked the agent…”, then a spoken answer about backscattered electrons leaving toward the camera</td></tr>
+    <tr><td class="box"></td><td>set up an orientation map of the nickel at 20 kV</td><td>The agent calls <code>exhibit_set</code> (EBSD, Ni, 20 kV; the mode sets the 70° tilt) and says what it changed</td></tr>
+    <tr><td class="box"></td><td>image the grating and calibrate the magnification</td><td>The agent calls <code>exhibit_set</code> and <code>exhibit_acquire</code>, then <code>exhibit_analyze</code> with <code>calibrate_scale</code>, and reports the calibration with the true value</td></tr>
+    <tr><td class="box"></td><td>compare 5 and 15 kV for this specimen</td><td>Several tool calls in sequence, then a summary; this tests multi-step planning</td></tr>
+    <tr><td class="box"></td><td>Start a training task, then ask the agent to change the focus</td><td>The exhibit refuses the change, and the agent reports the refusal</td></tr>
+    <tr><td class="box"></td><td>stop</td><td>The agent ends the loop</td></tr>
+  </table>
+  <div class="cols">
+    <div>
+      <h3>Analyses and emskills</h3>
+      <p>Measurement commands run a built-in analysis and compare it with the simulator's true value. The caption names the matching emskills skill, or says the analysis is not in emskills yet (Fig. 11).</p>
+      <table class="t">
+        <tr><th>Say</th><th>Analysis</th><th>emskills</th></tr>
+        <tr><td>calibrate the magnification</td><td><code>calibrate_scale</code></td><td>scalebar-calibrate</td></tr>
+        <tr><td>reconstruct the relief</td><td><code>reconstruct_relief</code></td><td>sem-topography</td></tr>
+        <tr><td>map the phases</td><td><code>phase_map</code></td><td>edax-phase-map</td></tr>
+        <tr><td>fit the EDS peaks</td><td><code>fit_eds</code></td><td>not yet</td></tr>
+        <tr><td>measure the resolution</td><td><code>fit_resolution</code></td><td>not yet</td></tr>
+        <tr><td>check the astigmatism</td><td><code>fit_focus</code></td><td>not yet</td></tr>
+        <tr><td>check the indexing</td><td><code>index_ebsd</code></td><td>not yet</td></tr>
+        <tr><td>count the dislocations</td><td><code>fit_cl</code></td><td>not yet</td></tr>
+      </table>
+    </div>
+    <div class="stack">
+      <figure class="fig ui"><img src="fig/sop3_cmd_scale.jpg" alt=""><figcaption><b>Fig. 11a.</b> Magnification calibrated on the 463 nm cross grating: ×0.9991 of nominal against a true ×1.</figcaption></figure>
+      <figure class="fig ui"><img src="fig/sop3_cmd_cl.jpg" alt=""><figcaption><b>Fig. 11b.</b> The CL analysis is not in emskills yet: a candidate for a new skill (Step 6).</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>6</span></div>
+</section>
+
+<!-- 7 · step 5 skills -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Step 5 of 6</span></div>
+  <div class="step">Step 5</div>
+  <h2>Use emskills skills with the agent</h2>
+  <p class="lede">An emskills skill is a folder with a <code>SKILL.md</code> manifest: front matter that names the skill and its tool call, and sections that tell an agent what the skill does, its limits, and how to call it. The registry is at <code>github.com/emskills-mcp/em-skills</code> and listed at emskills.org.</p>
+  <div class="cols">
+    <div>
+      <h3>Claude Code</h3>
+      <p>Claude Code loads skills from <code>~/.claude/skills/&lt;name&gt;/SKILL.md</code>. emskills manifests include the <code>name</code> and <code>description</code> fields it needs.</p>
+      <pre><code>git clone https://github.com/emskills-mcp/em-skills
+mkdir -p ~/.claude/skills
+cp -r em-skills/skills/scalebar-calibrate ~/.claude/skills/
+cp -r em-skills/skills/sem-topography ~/.claude/skills/</code></pre>
+      <p>Start a new session and ask, for example: <i>“Simulate an SE image of the cross grating at 10 kV with semview, then calibrate the magnification with the scalebar-calibrate skill and compare with the 463 nm pitch.”</i></p>
+      <h3>Other clients</h3>
+      <p>Give the agent the skill's <code>SKILL.md</code> as instructions: add it to a Claude Desktop project, reference it from <code>AGENTS.md</code> for Codex, or paste it into the system prompt for an Ollama model.</p>
+    </div>
+    <div>
+      <h3>Typical workflow</h3>
+      <ol class="proc">
+        <li>The agent produces data: <code>simulate</code> (headless) or <code>exhibit_acquire</code> with <code>save</code> (from the exhibit). Both write <code>.npz</code> with <code>metadata.json</code> holding the calibrations.</li>
+        <li>The agent runs the skill's tool or reference implementation on that file, following the skill's Usage section.</li>
+        <li>The agent compares the result with the truth recorded in the metadata, which is known because the data is simulated.</li>
+      </ol>
+      <div class="note"><b>Note.</b> Simulated data with known truth is the main reason to pair SEM-view with emskills: a skill can be tested on exact ground truth before it is trusted on real data.</div>
+      <div class="note caution"><b>Caution.</b> Skills run code on your computer. Read a skill's <code>SKILL.md</code> and its reference implementation before installing it, as you would any software.</div>
+    </div>
+  </div>
+  <h3 style="margin-top:4pt">semview tool reference</h3>
+  <table class="t">
+    <tr><th>Tool</th><th>Purpose</th></tr>
+<tr><td><code>simulate</code></td><td>Headless acquisition to .npz with metadata; no browser needed</td></tr>
+        <tr><td><code>twin</code></td><td>One persistent headless SEM with the Python calls: challenges, instrument profile, analyses</td></tr>
+        <tr><td><code>exhibit_status</code></td><td>Is an exhibit connected, and what it shows</td></tr>
+        <tr><td><code>exhibit_set</code></td><td>Change mode, specimen, kV, current, aperture, WD, focus, stigmator, field of view, tilt, coating, BSE segments</td></tr>
+        <tr><td><code>exhibit_action</code></td><td>Auto focus, blank or unblank the beam, wobbler, restart a map or the Monte Carlo, narrate</td></tr>
+        <tr><td><code>exhibit_command</code></td><td>Run a sentence through the exhibit's command grammar</td></tr>
+        <tr><td><code>exhibit_acquire</code></td><td>Record the detectors; optionally save .npz and .png</td></tr>
+        <tr><td><code>exhibit_analyze</code></td><td>Measure the live data and compare with the truth</td></tr>
+        <tr><td><code>exhibit_say</code></td><td>Show a caption and speak it in the exhibit</td></tr>
+        <tr><td><code>exhibit_wait_for_voice</code></td><td>Wait for the visitor's next question</td></tr>
+        </table>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>7</span></div>
+</section>
+
+<!-- 8 · step 6 contribute -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Step 6 of 6</span></div>
+  <div class="step">Step 6</div>
+  <h2>Contribute a skill to emskills</h2>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Fork <code>emskills-mcp/em-skills</code> on GitHub, clone your fork, and create a branch.</li>
+        <li>Create <code>skills/&lt;slug&gt;/</code> with the files in the table at right.</li>
+        <li>Write <code>SKILL.md</code>: the front matter below, then the sections <b>Scope</b>, <b>Safety</b>, <b>Usage</b> (a JSON block whose <code>tool</code> equals <code>tool_call</code>) and <b>Reproducibility</b> (one command that runs the check).</li>
+        <li>Make a small, deterministic fixture with known ground truth, and a reference implementation that recovers it.</li>
+        <li>Add one line for the skill under <b>## Skills</b> in the repository README.</li>
+        <li>Run the validator. It must pass with <code>--run</code>:
+          <pre><code>pip install -r requirements-dev.txt
+python3 scripts/validate_skills.py --run</code></pre></li>
+        <li>Commit, push, and open a pull request. The same validator runs in CI on the pull request.</li>
+      </ol>
+      <h3>Front matter</h3>
+      <pre><code>---
+name: cl-dislocation-density
+slug: cl-dislocation-density
+technique: SEM
+category: Spectroscopy
+kind: SKILL.md
+summary: Dislocation density from dark spots in CL maps
+license: MIT
+version: 0.1.0
+runtime: python 3.11
+tool_call: count_dislocations
+description: >
+  One paragraph for agents: what it does and when to use it.
+---</code></pre>
+    </div>
+    <div>
+      <table class="t">
+        <tr><th>File</th><th>Contents</th></tr>
+        <tr><td><code>SKILL.md</code></td><td>Manifest and instructions</td></tr>
+        <tr><td><code>examples/invoke.json</code></td><td>A sample tool call, matching the Usage block</td></tr>
+        <tr><td><code>fixtures/sample/</code></td><td>Small test input with known truth</td></tr>
+        <tr><td><code>fixtures/generate.py</code></td><td>How the fixture was made</td></tr>
+        <tr><td><code>verify.py</code> + <code>requirements.txt</code></td><td>Reference implementation (Python runtime)</td></tr>
+        <tr><td><code>verify.js</code> + <code>package.json</code></td><td>Reference implementation (Node runtime)</td></tr>
+      </table>
+      <p>Required front-matter keys: <code>name</code>, <code>slug</code>, <code>technique</code>, <code>category</code>, <code>kind</code>, <code>summary</code>, <code>license</code>, <code>version</code>, <code>runtime</code>, <code>tool_call</code>. Techniques: SEM, TEM, STEM, EDS, EELS, cryo-EM, FIB. The slug, name and folder must match, and the version is semver.</p>
+      <div class="note"><b>Tip.</b> SEM-view can generate fixtures with exact ground truth: <code>simulate</code> writes calibrated <code>.npz</code> data for any mode. CL maps from <code>simulate</code> (mode <code>cl</code>, specimen <code>gan</code>) come with the true dislocation density in the analysis truth: a ready fixture for the example above.</div>
+      <div class="note"><b>Open candidates.</b> The exhibit's <code>fit_eds</code>, <code>fit_resolution</code>, <code>fit_focus</code>, <code>index_ebsd</code>, <code>fit_cl</code> and <code>mc_summary</code> analyses have no emskills skill yet (Fig. 11b).</div>
+      <h3>Adding a command to SEM-view</h3>
+      <p>New sentences for the built-in grammar go in <code>parseCommand</code> in <code>js/voice.js</code>. New agent tools go in <code>tools/semview-mcp/server.mjs</code> (<code>registerTool</code>), with the matching method in <code>js/agent.js</code>. Add a check to <code>tools/semview-mcp/test.mjs</code> and open a pull request on <code>Advanced-EM/SEM-view</code>.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>8</span></div>
+</section>
+
+<!-- 9 · troubleshooting and record -->
+<section class="page">
+  <div class="run"><span>SOP-03 AI agents, MCP and skills</span><span>Troubleshooting and record</span></div>
+  <h2>Troubleshooting</h2>
+  <table class="t">
+    <tr><th>Observation</th><th>Likely cause</th><th>Action</th></tr>
+    <tr><td>“No agent server at ws://127.0.0.1:8792 or 8793”</td><td>The AI client is not running, or the server failed to start</td><td>Start the client; check that it lists semview; run <code>node test.mjs</code></td></tr>
+    <tr><td>Connected, but the agent says no exhibit is connected</td><td>Two clients are running; the exhibit joined the other one's server</td><td>Close the other client, or use <code>SEMVIEW_PORT</code> (Step 3)</td></tr>
+    <tr><td>Connect agent fails on the public site only</td><td>The browser blocks a web page from reaching a local server</td><td>Use Chrome or Edge, or a local copy of the exhibit</td></tr>
+    <tr><td>Questions show “Asked the agent…” but nothing is said</td><td>The agent is not in its listening loop</td><td>Give the listening instruction in Step 4 again</td></tr>
+    <tr><td>The agent stops listening after a few questions</td><td>Common with small local models</td><td>Restart the loop; use a larger model; keep requests short</td></tr>
+    <tr><td>The agent calls the wrong tool or invents arguments</td><td>Small model, or a long multi-part request</td><td>Ask for one change at a time; name the setting and value</td></tr>
+    <tr><td>Changes are refused</td><td>A training task is running</td><td>Finish or give up the task first</td></tr>
+    <tr><td>Validator fails on Usage</td><td>The Usage JSON or <code>invoke.json</code> does not match <code>tool_call</code></td><td>Make the three agree</td></tr>
+    <tr><td>Validator fails with <code>--run</code></td><td>The reference implementation does not recover the fixture's truth</td><td>Run the Reproducibility command locally and fix the check</td></tr>
+  </table>
+  <h2 style="margin-top:16pt">Record</h2>
+  <table class="t">
+    <tr><th></th><th>Item</th><th>Value or criterion</th><th>Initials</th></tr>
+    <tr><td class="box"></td><td>Server installed, <code>node test.mjs</code> passes</td><td>All lines “ok”</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>AI client and model</td><td>____________________</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Exhibit connected</td><td>“Agent connected” shown; port ______</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Built-in commands</td><td>Test plan rows 1 to 4 pass</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Beyond built-in commands</td><td>Test plan rows 5 to 10 pass</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Skill used with the agent</td><td>Skill: ____________________</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Skill contributed (optional)</td><td>Pull request: ______________</td><td class="line"></td></tr>
+  </table>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>9</span></div>
+</section>
+
+<!-- 10 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Resources</h2>
+  <p class="lede" style="color:#c3d3e1">SEM-view is a physics-based SEM simulator that runs in a web browser. emskills is an open registry of AI agent skills for electron microscopy. Both are open source.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">The semview-mcp server and its README</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Scan the code with a phone.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>SEM-view</h3><p>advanced-em.github.io/SEM-view<br>github.com/Advanced-EM/SEM-view</p></div>
+    <div><h3>emskills</h3><p>emskills.org<br>github.com/emskills-mcp/em-skills</p></div>
+    <div><h3>Model Context Protocol</h3><p>modelcontextprotocol.io</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-03 AI agents, MCP and skills, version 1.0, October 2026<br>Client names and configuration paths change between versions:<br>check your client's documentation if a step does not match.<br>Simulation only. Nothing here controls a real microscope.</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · emskills · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://github.com/Advanced-EM/SEM-view/tree/main/tools/semview-mcp';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>

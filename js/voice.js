@@ -360,7 +360,8 @@ export class Voice {
     clearTimeout(this.tm); this.el.innerHTML = html; this.el.hidden = false; this.sticky = sticky;
     return this.el;
   }
-  flash(html, ms = 3500) { this.bubble(html); this.tm = setTimeout(() => this.hide(), ms); }
+  // hold keeps captions up (tools/shots.mjs takes screenshots of them)
+  flash(html, ms = 3500) { this.bubble(html); if (!this.hold) this.tm = setTimeout(() => this.hide(), ms); }
   hide() { if (this.el) this.el.hidden = true; }
 }
 

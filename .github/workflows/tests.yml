@@ -1,0 +1,23 @@
+# The simulator's own checks on every push and pull request: the command grammar, the calibration fits and every
+# analysis against the truth, CL, the Python package (headless), the MCP server and the session collector.
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install numpy pytest
+      - name: Simulator
+        run: node tests/voice.mjs && node tests/fits.mjs && node tests/analyses.mjs && node tests/cl.mjs
+      - name: Python package (headless)
+        run: python -m pytest -q tools/semview-py/tests
+        env: { PYTHONPATH: tools/semview-py }
+      - name: MCP server
+        run: cd tools/semview-mcp && npm ci --no-audit --no-fund && node test.mjs
+      - name: Session collector
+        run: node hf/worker/test.mjs

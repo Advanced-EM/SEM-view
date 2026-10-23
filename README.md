@@ -42,7 +42,7 @@ look, the same Console, the same AI and scripting tools, for the SEM.
   - **Python scripting:** [`tools/semview-py`](tools/semview-py/README.md) scripts the microscope from Python: set the beam, acquire NumPy data with calibrations, run analyses, calibrate the twin, and test automation against hidden misalignments (challenges scored from the true optics). The same script runs in the exhibit's Python IDE (terminal button, or `P`; Pyodide in the browser), headless on a desktop, or driving an open exhibit.
 - **Control panel and Console:** an SEM hand panel (focus, magnification, probe current, a multifunction pair for stigmator X/Y, beam shift, aperture X/Y or tilt, a context knob for scan speed, tilt, current or voltage, stage joystick, wobbler, auto focus) through the Gamepad API. It speaks the same USB protocol as the [TEM-view Console](https://advanced-em.github.io/TEM-view/console/), so one physical Console drives both exhibits; ordinary game controllers work as a stand-in. Without hardware, the **on-screen panel** (`V`) offers the same knobs with the keyboard and mouse: Q/W focus, A/S magnification, Z/X current, H/L and K/J multifunction, Tab for the multifunction mode, O/P context, B wobbler, G auto focus, F fine/coarse, arrows for the stage. It docks over the page or pops out into its own window.
 - **Experiments:** *Charge it up* (find E2), *Nanograins: EBSD vs TKD*, and a fly-through tour.
-- **Guides:** printable procedures in [`docs/guides`](docs/guides/) with figures computed by the simulator (`node tools/figures.mjs`, then `node tools/guides.mjs` prints the PDFs): *SOP-01 SEM column alignment* and *SOP-02 Analytical set-up: EDS, EBSD and CL*. They are linked from the buttons under the title, next to *Buy me a coffee*, *Subscribe for news* (the shared TEM-view / SEM-view mailing list) and the sister exhibit.
+- **Guides:** printable procedures in [`docs/guides`](docs/guides/) with figures computed by the simulator (`node tools/figures.mjs`, then `node tools/guides.mjs` prints the PDFs): *SOP-01 SEM column alignment*, *SOP-02 Analytical set-up: EDS, EBSD and CL*, *SOP-03 AI agents, MCP and skills* and *SOP-04 Python scripting*. The interface screenshots in SOP-03 and SOP-04 are retaken with `node tools/shots.mjs` (headless Chrome, with the real semview-mcp server for the agent states). They are linked from the buttons under the title, next to *Buy me a coffee*, *Subscribe for news* (the shared TEM-view / SEM-view mailing list) and the sister exhibit.
 - **Keys:** `1`–`8` modes, `Space` blank the beam, `C` clarity, `L` labels, `E` electrons and signals, `R` reset the view, `X` enlarge the results, `I` acquire, `/` AI mode, `M` hold to talk, `T` training, `P` Python, `V` control panel, `N` auto-narration, `[` and `]` hide or show the side panels, `Esc` close.
 
 ## Run
@@ -63,6 +63,8 @@ python3 -m pytest tools/semview-py/tests                                   # Pyt
 node tools/semview-mcp/test.mjs                                            # MCP server (npm install there first)
 node hf/worker/test.mjs                                                    # session collector
 ```
+
+The same checks run on every push and pull request (`.github/workflows/tests.yml`).
 
 ## Code map
 

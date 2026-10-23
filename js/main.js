@@ -107,6 +107,9 @@ const CONTROLS = [
   { sec: 'Voice and agent' },
   { p: 'Type commands in AI mode (brain button, or /) or hold M and speak. An AI agent (for example Claude with the semview-mcp server, tools/semview-mcp) can run the microscope and answer questions out loud once you connect it.' },
   { buttons: [['agent', 'Connect agent'], ['panelcfg', 'Control panel…']] },
+  { sec: 'Python scripting' },
+  { p: 'Script the microscope in Python with NumPy, right here (Pyodide): set the beam, acquire calibrated data, run analyses, and test automation against hidden misalignments. The same script runs on a desktop, headless or driving this exhibit (tools/semview-py).' },
+  { buttons: [['ide', 'Open the Python IDE']] },
   { sec: 'Digital twin' },
   { p: 'The instrument profile holds what belongs to one particular SEM: gun brightness and energy spread, lens aberrations, scan calibration, the EDS detector. Calibrate it from data, save the whole session, export what the detectors record.' },
   { chips: 'profile', label: 'Instrument profile', get: () => S.profile.preset, dynOpts: () => Object.entries(PRESETS).map(([k, v]) => [k, v.name.split(',')[0]]) },
@@ -260,6 +263,7 @@ function action(id) {
   if (id === 'training') openTraining();
   if (id === 'replayFile') $('#fileReplay').click();
   if (id === 'lastSession') { if (scn.lastSession) scn.downloadSession(scn.lastSession); else flashChange('No recorded session yet', 'Run a training task with recording on, then download it here.'); }
+  if (id === 'ide') ide.toggle();
   if (id === 'agent') { if (agent.connected || agent.status === 'connecting') agent.disconnect(); else agent.connect(); }
   if (id === 'panelcfg') { $('#panelCfg').hidden = false; hwPanel.renderConfig($('#panelCfg .pBody')); }
   if (id === 'calib') openCalibration({ S, sim, onApply: applyCalibration });

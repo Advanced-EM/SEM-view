@@ -8,9 +8,11 @@ for (const [m, a, sh] of [[1, 1, 0], [1.04, 0.98, 1.2], [0.95, 1.02, -0.8]]) {
   const sim = new Sim(S); sim.computeImage();
   const f = C.fitGrating(sim.img.arr, 256, 256, { pixUm: S.fov / 256, pitchUm: 0.463 });
   console.log('grating true', m, a, sh, 'fit', f.magCal.toFixed(4), f.scanAspect.toFixed(4), f.scanShear.toFixed(3), 'rot', f.rotation_deg.toFixed(2));
+  // within 1 % in magnification and aspect, 0.5° in shear
+  if (Math.abs(f.magCal / m - 1) > 0.01 || Math.abs(f.scanAspect / a - 1) > 0.01 || Math.abs(f.scanShear - sh) > 0.5) { console.log('FAIL grating fit'); process.exitCode = 1; }
 }
 Object.assign(S.profile, { magCal: 1, scanAspect: 1, scanShear: 0 });
 S.spec = 'sn'; S.fov = 0.8;
-for (const foc of [0, 0.02, 0.05]) { S.focus = foc; const sim = new Sim(S); sim.computeImage(); const f = C.fitEdgeResolution(sim.img.arr, 256, 256, { pixUm: S.fov / 256 }); console.log('edge focus', foc, 'probe', sim.probe.d.toFixed(2), 'fit', f.resolution_nm.toFixed(2), f.edges); }
+for (const foc of [0, 0.02, 0.05]) { S.focus = foc; const sim = new Sim(S); sim.computeImage(); const f = C.fitEdgeResolution(sim.img.arr, 256, 256, { pixUm: S.fov / 256 }); console.log('edge focus', foc, 'probe', sim.probe.d.toFixed(2), 'fit', f.resolution_nm.toFixed(2), f.edges); if (Math.abs(f.resolution_nm / sim.probe.d - 1) > 0.5) { console.log('FAIL edge resolution'); process.exitCode = 1; } }
 S.focus = 0;
 for (const [sx, sy] of [[0.7, -0.45], [0, 0], [1.2, -0.45], [0.7, 0.2]]) { S.stigX = sx; S.stigY = sy; S.fov = 2; const sim = new Sim(S); sim.computeImage(); const f = C.focusAnisotropy(sim.img.arr, 256, 256); console.log('stig', sx, sy, 'res', sim.astigRes().map((v) => v.toFixed(2)), 'ell', f.ellipticity.toFixed(3), 'axis', f.axis_deg.toFixed(1), 'sharp', sim.img.sharp.toFixed(3)); }

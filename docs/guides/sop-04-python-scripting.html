@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-04 Python Scripting · Scanning with Electrons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=7">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-04</span><span>Automation for electron microscopy</span></div>
+    <h1>Python<br><em>scripting</em></h1>
+    <p class="sub" style="max-width:5.6in">Script the SEM-view microscope from Python: in the exhibit's IDE, headless on a desktop, or driving an open exhibit. Record NumPy data, run analyses, and test automation algorithms against a hidden misalignment.</p>
+  </div>
+  <div class="shot"><img src="fig/sop4_ide_auto.jpg" alt=""></div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-04</b>, version 1.0, October 2026<br>For users who script, and developers of alignment automation<br>Simulation only: nothing here controls a real microscope</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Scope and overview</span></div>
+  <h2>Scope and overview</h2>
+  <p class="lede">The <code>semview</code> Python package controls the simulated microscope: it changes settings, records detector data as NumPy arrays with calibrations, runs analyses that report the simulator's true values, and sets hidden misalignments (challenges) that score an algorithm against the truth. The same script runs in three places.</p>
+  <table class="t" style="margin-top:8pt">
+    <tr><th>Where</th><th>Open with</th><th>Needs</th><th>Best for</th></tr>
+    <tr><td><b>Python IDE in the exhibit</b></td><td><code>sv.connect()</code></td><td>A browser; Python runs in it (Pyodide)</td><td>Teaching, quick experiments, watching the exhibit respond</td></tr>
+    <tr><td><b>Desktop, headless</b></td><td><code>sv.connect()</code> or <code>sv.connect("headless")</code></td><td>Python 3.10+, NumPy, Node.js 20+</td><td>Long runs, batch data, algorithm benchmarks, CI tests</td></tr>
+    <tr><td><b>Desktop, live</b></td><td><code>sv.connect("live")</code></td><td>The above, <code>websockets</code>, an open exhibit</td><td>Desktop tools driving the exhibit on screen</td></tr>
+  </table>
+  <div class="cols">
+    <div>
+      <h3>Steps</h3>
+      <table class="t">
+        <tr><td class="n">1</td><td>Run a first script in the exhibit's IDE</td></tr>
+        <tr><td class="n">2</td><td>Install the package on a desktop</td></tr>
+        <tr><td class="n">3</td><td>Learn the calls</td></tr>
+        <tr><td class="n">4</td><td>Test an automation algorithm with challenges</td></tr>
+        <tr><td class="n">5</td><td>Batch data and regression tests</td></tr>
+      </table>
+      <h3>Terms used</h3>
+      <p>A <b>challenge</b> is a training task's hidden misalignment, set up for a script instead of a person. The <b>knob</b> is the setting a script reads and changes; the <b>truth</b> is the optics the simulator actually applies. During a challenge the two differ by the hidden amount, as on a misaligned instrument.</p>
+    </div>
+    <div>
+      <h3>Rules</h3>
+      <ul class="plain">
+        <li>While a person is doing a training task in the exhibit, scripts cannot change settings. The exhibit refuses, so recorded practice stays human.</li>
+        <li>Challenge runs are never recorded or shared with the research dataset.</li>
+        <li>Ending a challenge restores the instrument as it was before the challenge.</li>
+        <li>In the IDE, the exhibit pauses while a script runs and redraws when it ends. Keep long loops on a desktop.</li>
+        <li>Live mode listens on 127.0.0.1 only, on the port semview-mcp uses (8792). Run one or the other, or choose another port.</li>
+      </ul>
+      <div class="note"><b>Note.</b> An algorithm that reads the score or the hidden values while it runs is not tested by the challenge. Use <code>score()</code> and <code>reveal()</code> only after the algorithm has finished.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · step 1 IDE -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 1 of 5</span></div>
+  <div class="step">Step 1</div>
+  <h2>Run a first script in the exhibit</h2>
+  <div class="side" style="grid-template-columns:1fr 2.7in">
+    <div>
+      <ol class="proc">
+        <li>Open the exhibit in a current browser and select the terminal button at the top of the controls (Fig. 12a), or <b>Controls → Python scripting → Open the Python IDE</b> (Fig. 12b), or press <kbd>P</kbd>.</li>
+        <li>Wait for the status line to show the Python version. The first time, about 15 MB downloads; later it opens in a few seconds.</li>
+        <li>Select <b>Examples → Quick start</b>, then <b>Run</b> (or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, <kbd>⌘</kbd>+<kbd>Enter</kbd> on a Mac).</li>
+        <li>The exhibit switches to SE imaging of tin spheres at 5 kV. The output shows the probe size, the acquisition with its pixel size, and the image (Fig. 12c).</li>
+        <li>Edit the script and run it again. <b>Save</b> writes it as a <code>.py</code> file; <b>Open</b> loads one. <b>Help</b> lists the calls.</li>
+      </ol>
+      <p class="result"><b>Result.</b> The script changes the exhibit, and its output appears below the editor.</p>
+      <pre><code>import semview as sv
+
+sem = sv.connect()
+sem.set(mode="se", specimen="sn", kV=5, current_pA=100, fov_um=5)
+print(sem.state()["probe_nm"], "nm probe")
+img = sem.acquire()
+print(img, img.calibration["pixel_um"] * 1000, "nm per pixel")
+sv.show(img, "SE image, tin spheres on carbon")
+</code></pre>
+      <div class="note"><b>Note.</b> The editor keeps your script in this browser between visits. Python runs on your computer; no code is sent anywhere.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig ui"><img src="fig/sop4_buttons.jpg" alt=""><figcaption><b>Fig. 12a.</b> The scripting button, third from the left, at the top of the controls.</figcaption></figure>
+      <figure class="fig ui"><img src="fig/sop4_controls_sec.jpg" alt=""><figcaption><b>Fig. 12b.</b> Controls → Python scripting.</figcaption></figure>
+    </div>
+  </div>
+  <figure class="fig ui" style="margin-top:6pt"><img src="fig/sop4_ide_quickstart.jpg" alt="" style="max-height:3.1in;object-fit:cover;object-position:50% 0%"><figcaption><b>Fig. 12c.</b> The Quick start example and its output: the probe size, the acquisition and its pixel size, and the SE image.</figcaption></figure>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · step 2 desktop -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 2 of 5</span></div>
+  <div class="step">Step 2</div>
+  <h2>Install the package on a desktop</h2>
+  <p class="lede">The headless backend runs the simulator's own JavaScript in Node.js, so the package is installed from a copy of the repository and stays linked to it.</p>
+  <pre><code>git clone https://github.com/Advanced-EM/SEM-view
+python -m venv .venv && source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e "SEM-view/tools/semview-py[live,plot,test]"
+pytest SEM-view/tools/semview-py/tests                        # all tests should pass
+python SEM-view/tools/semview-py/examples/quickstart.py</code></pre>
+  <div class="cols">
+    <div>
+      <h3>Headless</h3>
+      <ol class="proc">
+        <li>Check Node.js: <code>node --version</code> must report 20 or later.</li>
+        <li>In Python, <code>sem = sv.connect()</code> starts the simulator in a background Node process. It stops when the script ends, or with <code>sem.close()</code>.</li>
+        <li>Use it as a context manager to close it reliably: <code>with sv.connect() as sem: …</code></li>
+      </ol>
+      <p class="result"><b>Result.</b> <code>sem.info()["backend"]</code> is <code>"headless"</code>, and a typical acquisition returns in a fraction of a second.</p>
+      <div class="note"><b>Note.</b> To use a copy of the repository somewhere else, set the environment variable <code>SEMVIEW_ROOT</code> to its folder.</div>
+    </div>
+    <div>
+      <h3>Live (driving an open exhibit)</h3>
+      <ol class="proc">
+        <li>Close any AI client that runs semview-mcp, or choose another port.</li>
+        <li>Run the script. <code>sv.connect("live")</code> prints that it is waiting for the exhibit.</li>
+        <li>In the exhibit, select <b>Controls → Voice and agent → Connect agent</b> within the timeout (120 s by default).</li>
+        <li>The script continues, and the exhibit follows each call on screen.</li>
+      </ol>
+      <pre><code>sem = sv.connect("live", port=8792, timeout=120)</code></pre>
+      <p class="result"><b>Result.</b> The script prints “Exhibit connected.”, and the exhibit shows <b>Agent connected</b>.</p>
+      <div class="note caution"><b>Caution.</b> Live mode listens on 127.0.0.1 only and accepts the exhibit's own site and localhost. Do not forward the port to a network.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · step 3 calls -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 3 of 5</span></div>
+  <div class="step">Step 3</div>
+  <h2>The calls</h2>
+  <p class="lede">Every call is the same on the three backends. <code>sem</code> is the object <code>sv.connect()</code> returns.</p>
+      <h3>Microscope</h3>
+      <table class="t">
+        <tr><th>Call</th><th>Returns, or does</th></tr>
+        <tr><td><code>sem.set(**settings)</code></td><td>Changes settings (next page); returns what was done</td></tr>
+        <tr><td><code>sem.state()</code></td><td>Settings and beam: probe size and its budget (source, Cₛ, Cc, diffraction, aperture), depth of field, sharpness, charging</td></tr>
+        <tr><td><code>sem.command(text)</code></td><td>Runs a plain-language command: <code>"focus plus 0.5"</code></td></tr>
+        <tr><td><code>sem.autofocus()</code></td><td>The instrument's auto focus and stigmation (disabled in challenges that test your own)</td></tr>
+        <tr><td><code>sem.profile(**fields)</code></td><td>The digital twin's instrument profile: read it, pick a <code>preset</code>, or set calibrations (magCal, scanAspect, scanShear, Br, edsFWHM, …)</td></tr>
+        <tr><td><code>sem.acquire(steps=None)</code></td><td>An <code>Acquisition</code> (below), after advancing the simulation so it reflects the settings (an EBSD map runs to the end, EDS counts for 3 s)</td></tr>
+        <tr><td><code>sem.analyze(name)</code></td><td><code>calibrate_scale</code>, <code>fit_resolution</code>, <code>fit_focus</code>, <code>reconstruct_relief</code>, <code>fit_eds</code>, <code>phase_map</code>, <code>index_ebsd</code>, <code>fit_cl</code>, <code>mc_summary</code>; the result includes the true values</td></tr>
+        <tr><td><code>sem.step(n)</code></td><td>Advances n frames of 50 ms: EDS counts accumulate, maps fill in, the wobbler swings</td></tr>
+        <tr><td><code>sem.info()</code></td><td>Modes, specimens, settings, analyses, challenges and instrument presets available</td></tr>
+        <tr><td><code>sem.challenge(id, seed)</code></td><td>Starts <code>sem-focus-stig</code>, <code>sem-aperture-align</code>, <code>sem-insulator</code> or <code>ebsd-setup</code></td></tr>
+        <tr><td><code>sem.score()</code> · <code>sem.reveal()</code></td><td>The challenge's score from the true optics · the hidden values</td></tr>
+        <tr><td><code>sem.end_challenge()</code></td><td>Restores the instrument as it was</td></tr>
+        <tr><td><code>sv.show(x, title)</code></td><td>Draws a 2D image or a 1D profile (IDE output, or matplotlib)</td></tr>
+      </table>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>5</span></div>
+</section>
+
+<!-- 5b · settings and data -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 3 of 5, continued</span></div>
+  <h2>Settings and data</h2>
+  <div class="cols">
+    <div>
+      <h3>Settings</h3>
+      <table class="t">
+        <tr><th>Name</th><th>Values</th></tr>
+        <tr><td><code>mode</code></td><td>se, inlens, bse, ebsd, tkd, eds, cl, mc</td></tr>
+        <tr><td><code>specimen</code></td><td>sn (tin on carbon), ni (nickel), chip, grid (cross grating), gan (GaN LED)</td></tr>
+        <tr><td><code>kV</code></td><td>Accelerating voltage, 0.5 to 30</td></tr>
+        <tr><td><code>current_pA</code></td><td>Probe current, 1 to 20,000</td></tr>
+        <tr><td><code>aperture_um</code>, <code>wd_mm</code></td><td>10, 20, 30, 60 or 120 µm; working distance 2 to 20 mm</td></tr>
+        <tr><td><code>focus_um</code></td><td>Focus offset on the knob; the range follows the field of view (±0.6 × field)</td></tr>
+        <tr><td><code>stig_x</code>, <code>stig_y</code></td><td>Stigmator, ±2 µm</td></tr>
+        <tr><td><code>aperture_x_um</code>, <code>aperture_y_um</code></td><td>Aperture alignment, ±40 µm</td></tr>
+        <tr><td><code>fov_um</code>, <code>stage_um</code></td><td>Field of view (within the specimen's range); stage position [x, y]</td></tr>
+        <tr><td><code>tilt_deg</code>, <code>dwell_us</code></td><td>Stage tilt 0 to 72°; pixel dwell 0.1 to 30 µs</td></tr>
+        <tr><td><code>coated</code>, <code>etd_bias_V</code></td><td>Carbon coating; ETD Faraday cage −150 to +300 V</td></tr>
+        <tr><td><code>bse</code>, <code>segments</code></td><td>comp, topoX, topoY; or each quadrant +1, −1, 0</td></tr>
+        <tr><td><code>map_size</code>, <code>exposure_ms</code>, <code>foil_nm</code></td><td>EBSD/TKD map 24, 40 or 56; pattern exposure; TKD foil thickness</td></tr>
+        <tr><td><code>cl_mode</code>, <code>cl_wavelength_nm</code>, <code>cl_band_nm</code></td><td>pan or mono; monochromator centre 300 to 800 nm and bandwidth</td></tr>
+        <tr><td><code>realistic</code>, <code>beam</code>, <code>wobbler</code></td><td>Shot noise (True) or the clean view; beam on or blanked; focus wobbler</td></tr>
+      </table>
+      <p>Settings apply in a fixed order whatever order you write them: specimen, mode, then the optics. Choosing a mode applies its usual conditions (for example, EBSD sets 70° tilt, at least 20 kV and nanoamps; CL inserts the mirror at 10 mm working distance), so set those values after it or in the same call.</p>
+      <div class="note"><b>Errors.</b> A refused or invalid call raises <code>SemviewError</code> with the reason, for example <i>unknown setting defocus</i> or <i>a training task is running</i>.</div>
+    </div>
+    <div>
+      <h3>Acquisition</h3>
+      <table class="t">
+        <tr><td><code>a.image</code></td><td>The main array: image, map, spectrum, …</td></tr>
+        <tr><td><code>a["segment_A"]</code>, <code>a.arrays</code></td><td>Any array by name (BSE quadrants, EBSD Euler maps, EDS element maps, the CL cube); all of them</td></tr>
+        <tr><td><code>a.calibration</code></td><td>Pixel size, map step, energy or wavelength scale, as recorded</td></tr>
+        <tr><td><code>a.meta</code></td><td>The full metadata, including the instrument state</td></tr>
+        <tr><td><code>a.save("x.npz")</code></td><td>The same .npz file the exhibit's Export button writes</td></tr>
+      </table>
+      <h3>Reading an acquisition</h3>
+      <pre><code>a = sem.acquire()
+a.image.shape              # (256, 256)
+a.calibration["pixel_um"]  # µm per pixel (nominal)
+a.meta["beam"]             # kV, current, probe size, convergence
+a.save("run.npz")          # numpy.load() reads it back</code></pre>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>6</span></div>
+</section>
+
+<!-- 6 · step 4 automation -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 4 of 5</span></div>
+  <div class="step">Step 4</div>
+  <h2>Test an automation algorithm with challenges</h2>
+  <p class="lede">A challenge hides a misalignment, so the knob readings no longer show the true optics. The algorithm works only from what a real microscope gives it: images and measurements. Afterwards, <code>score()</code> grades the result against the truth. A fixed seed repeats the same misalignment, so algorithms are compared on the same cases.</p>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Start a challenge with a seed: <code>sem.challenge("sem-focus-stig", seed=1)</code>.</li>
+        <li>Run the algorithm. It may read <code>state()</code> (the knobs), acquire, and analyze, but not <code>score()</code> or <code>reveal()</code>.</li>
+        <li>When it stops, record <code>sem.score()</code>.</li>
+        <li>Repeat for a set of seeds, and report the scores together.</li>
+        <li>Call <code>sem.end_challenge()</code> to restore the instrument.</li>
+      </ol>
+      <h3>The example: automatic focus and stigmation</h3>
+      <p><code>examples/auto_focus_stig.py</code> corrects focus and two-fold astigmatism from the images alone:</p>
+      <ul class="plain">
+        <li>Its measure of quality is the image's gradient energy: largest when the probe is smallest.</li>
+        <li>A golden-section search finds the sharpest setting of one knob over its whole range, in 14 steps, using only acquired images.</li>
+        <li>The knobs are searched in the order a microscopist adjusts them: focus, stigmator X, stigmator Y; then the three again, which settles the small coupling between them.</li>
+        <li>The knob readings are off by unknown amounts, so it never uses absolute values: it only compares images.</li>
+      </ul>
+
+    </div>
+    <div>
+      <svg class="diagram" viewBox="0 0 300 250" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" font-size="10.5">
+        <defs><marker id="b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 8 4 0 8z" fill="#5d6773"/></marker></defs>
+        <g fill="#fff" stroke="#1a1f26" stroke-width="0.8">
+          <rect x="40" y="4" width="220" height="30"/><rect x="40" y="56" width="220" height="30"/><rect x="40" y="108" width="220" height="30"/><rect x="40" y="160" width="220" height="30"/><rect x="40" y="212" width="220" height="30"/>
+        </g>
+        <g fill="#1a1f26" text-anchor="middle">
+          <text x="150" y="23">Focus: golden-section search on sharpness</text>
+          <text x="150" y="75">Stigmator X: the same search</text>
+          <text x="150" y="127">Stigmator Y: the same search</text>
+          <text x="150" y="179">Repeat focus, X and Y once</text>
+          <text x="150" y="231">Stop; then score() from the true optics</text>
+        </g>
+        <g stroke="#5d6773" stroke-width="1"><line x1="150" y1="34" x2="150" y2="54" marker-end="url(#b)"/><line x1="150" y1="86" x2="150" y2="106" marker-end="url(#b)"/><line x1="150" y1="138" x2="150" y2="158" marker-end="url(#b)"/><line x1="150" y1="190" x2="150" y2="210" marker-end="url(#b)"/></g>
+      </svg>
+
+      <table class="t">
+        <tr><th>Seed</th><th>Score before → after</th><th>Focus error</th><th>Astigmatism left</th></tr>
+        <tr><td>1</td><td>19 → 100</td><td>15 nm</td><td>0.22 µm</td></tr>
+        <tr><td>2</td><td>27 → 100</td><td>25 nm</td><td>0.23 µm</td></tr>
+        <tr><td>3</td><td>46 → 100</td><td>42 nm</td><td>0.17 µm</td></tr>
+        <tr><td>4</td><td>30 → 100</td><td>37 nm</td><td>0.19 µm</td></tr>
+        <tr><td>5</td><td>27 → 100</td><td>29 nm</td><td>0.07 µm</td></tr>
+        <tr><td>6</td><td>57 → 100</td><td>9 nm</td><td>0.05 µm</td></tr>
+        <tr><td>7</td><td>75 → 100</td><td>29 nm</td><td>0.25 µm</td></tr>
+        <tr><td>8</td><td>64 → 100</td><td>26 nm</td><td>0.08 µm</td></tr>
+      
+</table>
+      <p style="font-size:8pt;color:var(--muted)">Headless; tin spheres, 450 nm field, 10 kV; about 90 acquisitions and 24 s per seed. The images carry shot noise, so the same seed ends slightly differently from run to run (in the IDE as well); it passes the same way.</p>
+      <div class="note"><b>What the score means.</b> The task scores the blur that focus and astigmatism add, against the probe diameter. Here every seed ends with less than half a probe diameter of added blur, so the image is as sharp as the probe allows, even with up to a quarter of a micrometre of astigmatism left: at this magnification and convergence that residue adds about a nanometre of blur at most.</div>
+
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>7</span></div>
+</section>
+
+<!-- 7 · step 5 batch and CI -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Step 5 of 5</span></div>
+  <div class="step">Step 5</div>
+  <h2>Batch data and regression tests</h2>
+  <div class="cols">
+    <div>
+      <h3>A labelled dataset</h3>
+      <p>Simulated data comes with exact ground truth, which makes it useful for training and testing analysis models. Run this headless:</p>
+      <pre><code>import json, semview as sv
+
+with sv.connect() as sem:
+    sem.set(mode="se", specimen="sn", kV=10, fov_um=0.45, realistic=True)
+    sem.autofocus()                                   # a sharp, stigmated start
+    f0, (x0, y0) = sem.state()["focus_um"], sem.state()["stig"]
+    labels = []
+    for i, df in enumerate((-0.6, -0.3, 0, 0.3, 0.6)):
+        for dx, dy in ((0, 0), (0.5, 0), (0, 0.5), (0.4, -0.4)):
+            sem.set(focus_um=f0 + df, stig_x=x0 + dx, stig_y=y0 + dy)
+            name = f"focus_{i}_{dx:+.1f}_{dy:+.1f}.npz"
+            sem.acquire().save(name)
+            labels.append({"file": name, "defocus_um": df, "astigmatism_um": [dx, dy]})
+    json.dump(labels, open("labels.json", "w"), indent=1)
+</code></pre>
+      <p>The labels are relative to the auto focus result, which lands within a few hundredths of a micrometre of the true focus and stigmation. Each <code>.npz</code> also carries the full instrument state in its metadata.</p>
+      <h3>Reproducibility</h3>
+      <ul class="plain">
+        <li>Record <code>sem.state()</code> and <code>sem.info()</code> with every result.</li>
+        <li>Fix challenge seeds. Use realistic mode (<code>realistic=True</code>) when shot noise matters to the algorithm.</li>
+        <li>Note the repository commit (<code>git rev-parse HEAD</code>); the simulator improves between versions.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>An algorithm as a regression test</h3>
+      <p>Put the benchmark in a test so that changes to the algorithm or the simulator cannot silently make it worse:</p>
+      <pre><code># tests/test_autofocus.py
+import pytest, semview as sv
+from auto_focus_stig import align     # tools/semview-py/examples
+
+@pytest.fixture(scope="module")
+def sem():
+    with sv.connect() as m:
+        yield m
+
+@pytest.mark.parametrize("seed", range(1, 9))
+def test_autofocus(sem, seed):
+    sem.challenge("sem-focus-stig", seed=seed)
+    align(sem, verbose=False)
+    assert sem.score()["score"] &gt;= 85
+    sem.end_challenge()
+</code></pre>
+      <p>The SEM-view repository runs its own tests this way on every pull request (<code>.github/workflows/tests.yml</code>), with Node.js 20 and Python set up in the workflow.</p>
+      <div class="note"><b>Voltage-series example.</b> <code>examples/find_e2.py</code> steps the voltage down on an uncoated alumina inclusion until it stops charging. With seed 7 it stops at 1.8 kV, against a hidden E2 of 1.82 kV.</div>
+      <h3>Speed</h3>
+      <p>An SE or BSE image takes about a quarter of a second, a through-focus analysis about half a second, and a 40 × 40 EBSD map a few seconds. The simulator computes on the CPU in JavaScript. The calls do not depend on how it computes, so a future WebGPU backend could speed up the same scripts without changes; the IDE's status line shows whether the browser offers WebGPU.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>8</span></div>
+</section>
+
+<!-- 8 · troubleshooting and record -->
+<section class="page">
+  <div class="run"><span>SOP-04 Python scripting</span><span>Troubleshooting and record</span></div>
+  <h2>Troubleshooting</h2>
+  <table class="t">
+    <tr><th>Observation</th><th>Likely cause</th><th>Action</th></tr>
+    <tr><td>The IDE says “Python could not load”</td><td>No network on first use, or the CDN is blocked</td><td>Connect once; later opens use the browser cache</td></tr>
+    <tr><td>The exhibit freezes while a script runs</td><td>Expected: IDE scripts run on the page's thread</td><td>Wait; move long loops to a desktop</td></tr>
+    <tr><td><code>SemviewError: A training task is running</code></td><td>A person is doing a training task</td><td>Finish or give up the task first</td></tr>
+    <tr><td><code>Node.js 20 or later is needed</code></td><td>Node is missing or old</td><td>Install Node.js 20+; check <code>node --version</code></td></tr>
+    <tr><td><code>SEM-view not found at …</code></td><td>The package is not linked to a copy of the repository</td><td>Install with <code>pip install -e</code> from a clone, or set <code>SEMVIEW_ROOT</code></td></tr>
+    <tr><td><code>port 8792 is in use</code></td><td>An AI client runs semview-mcp</td><td>Close it, or <code>connect("live", port=8793)</code></td></tr>
+    <tr><td>No exhibit connected within the timeout</td><td>Connect agent not selected, or the exhibit joined another server</td><td>Select Connect agent again; close other semview servers</td></tr>
+    <tr><td>Images look blurred or streaked</td><td>Defocus or astigmatism (the column has its own)</td><td>Run <code>sem.autofocus()</code> (outside challenges), or your own focus and stigmation</td></tr>
+    <tr><td>Results differ between runs</td><td>Unseeded challenge, drift, or realistic shot noise</td><td>Fix the seed; average several acquisitions; use the clean view (<code>realistic=False</code>) when noise does not matter</td></tr>
+  </table>
+  <h2 style="margin-top:16pt">Record</h2>
+  <table class="t">
+    <tr><th></th><th>Item</th><th>Value or criterion</th><th>Initials</th></tr>
+    <tr><td class="box"></td><td>IDE runs the Quick start example</td><td>Image and probe profile shown</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Desktop package installed, tests pass</td><td>All passed</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Live mode connects</td><td>“Exhibit connected.”; port ______</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Algorithm benchmarked on challenges</td><td>Seeds ______ ; mean score ______</td><td class="line"></td></tr>
+    <tr><td class="box"></td><td>Repository commit and settings recorded</td><td>Commit ____________</td><td class="line"></td></tr>
+  </table>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>9</span></div>
+</section>
+
+<!-- 9 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Open the IDE</h2>
+  <p class="lede" style="color:#c3d3e1">The link opens SEM-view with the Python IDE and the Quick start example loaded. Select Run.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">Python IDE with the Quick start example</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Use a computer: the IDE needs a keyboard and a larger screen.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>The package</h3><p>github.com/Advanced-EM/SEM-view<br>tools/semview-py</p></div>
+    <div><h3>Related procedures</h3><p>SOP-01 SEM column alignment and SOP-02 analytical set-up: the tasks the challenges come from. SOP-03: AI agents and MCP.</p></div>
+    <div><h3>Pyodide</h3><p>Python in the browser: pyodide.org</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-04 Python scripting, version 1.0, October 2026<br>Simulation only. Nothing here controls a real microscope.<br>Results from the simulator are not measurements of a real specimen.</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/SEM-view/?script=quickstart';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>
