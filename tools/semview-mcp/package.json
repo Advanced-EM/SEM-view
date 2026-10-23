@@ -1,0 +1,22 @@
+{
+  "name": "semview-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server that lets an AI agent drive the SEM-view digital twin: live in the exhibit, or headless.",
+  "type": "module",
+  "bin": {
+    "semview-mcp": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  }
+}

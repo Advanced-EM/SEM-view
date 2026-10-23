@@ -24,14 +24,43 @@ export function blurred(a, w, h, sx, sy = sx) {
   return src === a ? Float32Array.from(a) : src;
 }
 
+// Gaussian blur with any covariance (px²): [[sxx, sxy], [sxy, syy]], as 1D passes along x, y and one
+// diagonal: Σ = a·x̂x̂ᵀ + b·ŷŷᵀ + c·d̂d̂ᵀ with d̂ = (1, ±1)/√2. Used for the astigmatic (elliptical) probe.
+export function blurAniso(arr, w, h, sxx, syy, sxy) {
+  const c = 2 * Math.abs(sxy), a = Math.max(0, sxx - c / 2), b = Math.max(0, syy - c / 2), sg = sxy >= 0 ? 1 : -1;
+  let out = blurred(arr, w, h, Math.sqrt(a), Math.sqrt(b));
+  const s = Math.sqrt(c / 2); // sigma in diagonal steps (one step moves √2 px)
+  if (s < 0.35) return out;
+  const R = Math.min(60, Math.ceil(3 * s)), k = new Float32Array(2 * R + 1);
+  let sum = 0;
+  for (let i = -R; i <= R; i++) { k[i + R] = Math.exp((-0.5 * i * i) / (s * s)); sum += k[i + R]; }
+  const res = new Float32Array(w * h);
+  // image y runs down the rows while sxy is in the image frame (y up): a positive sxy runs along (+x, −row)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = 0;
+    for (let i = -R; i <= R; i++) v += out[clamp(y - sg * i, 0, h - 1) * w + clamp(x + i, 0, w - 1)] * k[i + R];
+    res[y * w + x] = v / sum;
+  }
+  return res;
+}
+
 export class Sim {
   constructor(S) {
     this.S = S;
     this.stale = { img: 1, map: 1, eds: 1, mc: 1 };
     this.version = 0;
     this.raster = 0; this.frame = 0;
-    this.astig = 0.9; // hidden residual astigmatism (µm) the operator must correct with the stigmator
+    this.astig = [0.7, -0.45]; // the column's own residual astigmatism (µm, X and Y) the stigmator must cancel
+    this.clock = 0; this.wob = 0; this.wobT = 0;
   }
+  // field of view and scan as they truly are: the profile's magnification calibration, scan aspect and shear
+  fovT() { return this.S.fov * (this.S.profile?.magCal ?? 1); }
+  // astigmatism left after the stigmator (µm, X and Y); a training task adds its own hidden error
+  astigRes() { const S = this.S, h = S.mis?.stig ?? this.astig; return [S.stigX - h[0], S.stigY - h[1]]; }
+  // focus as it truly is: the knob, plus the wobbler's swing, minus a hidden offset (training)
+  focusT() { return this.S.focus + this.wob - (this.S.mis?.focus ?? 0); }
+  // the wobbler swings the focus by about three depths of field either side, a few times a second
+  wobbleAmp() { return (3 * (this.fovT() / 256)) / this.probe.alpha; }
   get spec() { return SP[this.S.spec]; }
   get probe() { return P.probe(this.S); }
   invalidate(key) {
@@ -44,21 +73,25 @@ export class Sim {
 
   // ------------------------------------------------------------------ imaging
   sampleGrid(n, fov, cx, cy) {
-    const key = [this.S.spec, n, fov, cx, cy].join('|');
+    const pr = this.S.profile, asp = pr?.scanAspect ?? 1, sh = Math.tan(((pr?.scanShear ?? 0) * Math.PI) / 180);
+    const key = [this.S.spec, n, fov, cx, cy, asp, sh].join('|');
     if (this._grid?.key === key) return this._grid;
     const spec = this.spec, px = fov / n;
     const H = new Float32Array(n * n), M = new Uint8Array(n * n), ori = new Array(n * n);
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
-        const x = cx + (i + 0.5 - n / 2) * px, y = cy - (j + 0.5 - n / 2) * px;
+        const ys = (j + 0.5 - n / 2) * px * asp, x = cx + (i + 0.5 - n / 2) * px + sh * ys, y = cy - ys;
         const s = spec.sample(x, y, px), k = j * n + i;
         H[k] = s.h; M[k] = MKEYS.indexOf(s.mat); ori[k] = s.ori;
       }
     return (this._grid = { H, M, ori, px, n, key });
   }
   computeImage() {
-    const S = this.S, n = 256, fov = S.fov, E = S.kV;
-    const g = this.sampleGrid(n, fov, S.cx, S.cy);
+    const S = this.S, n = 256, fov = this.fovT(), E = S.kV;
+    // an off-axis aperture makes the image walk sideways as the focus changes (what the wobbler shows)
+    const off = P.apertureOffset(S), fT = this.focusT();
+    this.shift = [0.01 * off[0] * fT, 0.01 * off[1] * fT];
+    const g = this.sampleGrid(n, fov, S.cx + this.shift[0], S.cy + this.shift[1]);
     const { H, M, ori, px } = g;
     const t = S.tilt * DEG, T = this.tiltM();
     // dominant material for interaction ranges
@@ -137,7 +170,9 @@ export class Sim {
         let c = 0;
         for (let i = 0; i < n; i++) {
           const k = j * n + i, m = P.MAT[MKEYS[M[k]]];
-          if (P.charges(m, E, S.coated)) { c = Math.min(2.5, c + 0.06 * clamp((E - m.E2) / m.E2, 0.2, 2)); charging = true; }
+          // a training task may give the insulator its own E2 (the textbook value is only a guide)
+          const E2 = m.E2 && S.mis?.E2 ? S.mis.E2 : m.E2;
+          if (!m.cond && !S.coated && E > E2) { c = Math.min(2.5, c + 0.06 * clamp((E - E2) / E2, 0.2, 2)); charging = true; }
           else c *= 0.965;
           out[k] += c;
         }
@@ -146,13 +181,13 @@ export class Sim {
     // focus, astigmatism and depth of field → blur
     const pr = this.probe, alpha = pr.alpha;
     const sProbe = pr.d / 1000 / 2.355 / px;
-    const ast = S.stig - this.astig;
+    const [ax, ay] = this.astigRes(), A = Math.hypot(ax, ay), th = 0.5 * Math.atan2(ay, ax), F = this.focusT();
     const hRef = H[(n / 2) * n + n / 2];
     // per-pixel defocus from height (depth of field) handled by blending a blur pyramid
     // only build the blur levels this image actually needs
     const dof = new Float32Array(n * n);
     let sMax = 0;
-    for (let k = 0; k < n * n; k++) { const dz = S.focus + (H[k] - hRef); dof[k] = Math.hypot((alpha * Math.abs(dz)) / px, sProbe); if (dof[k] > sMax) sMax = dof[k]; }
+    for (let k = 0; k < n * n; k++) { const dz = F + (H[k] - hRef); dof[k] = Math.hypot((alpha * Math.abs(dz)) / px, sProbe); if (dof[k] > sMax) sMax = dof[k]; }
     const levels = [0, 1, 2, 4, 8, 16].filter((l, i, a) => i < 2 || a[i - 1] < sMax);
     const pyr = levels.map((s) => (s ? blurred(out, n, n, s) : out));
     const res = new Float32Array(n * n);
@@ -163,9 +198,12 @@ export class Sim {
       const f = clamp((s - levels[lv]) / (levels[lv + 1] - levels[lv]), 0, 1);
       res[k] = pyr[lv][k] * (1 - f) + pyr[lv + 1][k] * f;
     }
-    const sx = (alpha * Math.abs(S.focus + ast)) / px, sy = (alpha * Math.abs(S.focus - ast)) / px;
-    const final = Math.abs(ast) > 0.02 || Math.abs(S.focus) > 0.01 ? blurred(res, n, n, Math.max(0, sx - 0.3), Math.max(0, sy - 0.3)) : res;
-    this.img = { arr: final, n, px, charging, Rko, dom, sharp: this.sharpness(final, n) };
+    // astigmatism: two line foci at F ± A along θ and θ + 90°. The round part (focus) is in the pyramid above;
+    // what is left is the elliptical excess, which smears the image along θ on one side of focus and across it on the other
+    const s0 = (alpha * Math.abs(F)) / px, s1 = (alpha * Math.abs(F + A)) / px, s2 = (alpha * Math.abs(F - A)) / px;
+    const v1 = Math.max(0, s1 * s1 - s0 * s0), v2 = Math.max(0, s2 * s2 - s0 * s0), c = Math.cos(th), sn = Math.sin(th);
+    const final = v1 + v2 > 0.1 ? blurAniso(res, n, n, v1 * c * c + v2 * sn * sn, v1 * sn * sn + v2 * c * c, (v1 - v2) * c * sn) : res;
+    this.img = { arr: final, n, px, charging, Rko, dom, sharp: this.sharpness(final, n), H, parts: { bse, bseB, nx: nxA, ny: nyA } };
     this.grid = g;
     this.main = { arr: final, w: n, h: n };
     this.raster = 0; this.firstPass = this.frame;
@@ -328,7 +366,7 @@ export class Sim {
   // ------------------------------------------------------------------ EBSD/TKD mapping
   startMap() {
     const S = this.S, N = S.mapN;
-    this.map = { N, done: 0, fov: S.fov, cx: S.cx, cy: S.cy, O: new Array(N * N), mad: new Float32Array(N * N), bc: new Float32Array(N * N), err: new Float32Array(N * N).fill(-1), phase: new Array(N * N), ok: 0, errSum: 0, t0: performance.now() };
+    this.map = { N, done: 0, fov: this.fovT(), cx: S.cx, cy: S.cy, O: new Array(N * N), mad: new Float32Array(N * N), bc: new Float32Array(N * N), err: new Float32Array(N * N).fill(-1), phase: new Array(N * N), ok: 0, errSum: 0, t0: performance.now() };
     this.stale.map = 0;
   }
   stepMap(budget) {
@@ -360,7 +398,7 @@ export class Sim {
   // ------------------------------------------------------------------ EDS
   computeEDS() {
     const S = this.S, n = 96, E0 = S.kV;
-    const g = this.sampleGrid(n, S.fov, S.cx, S.cy);
+    const g = this.sampleGrid(n, this.fovT(), S.cx, S.cy);
     const els = new Set();
     for (let k = 0; k < n * n; k++) for (const e in P.MAT[MKEYS[g.M[k]]].comp) els.add(e);
     const syms = [...els];
@@ -396,10 +434,11 @@ export class Sim {
       if (!c || E0 <= L.Ec) continue;
       const U = E0 / L.Ec, I = c * L.y * L.w * (Math.log(U) / U) * absorb(L.E, L.Ec) * P.detEff(L.E);
       lineI[L.el + L.line] = I;
-      const s = P.edsFWHM(L.E) / 2.355;
-      for (let b = Math.max(0, Math.floor((L.E - 4 * s) / dE)); b <= Math.min(nb - 1, Math.ceil((L.E + 4 * s) / dE)); b++) {
+      // the detector's energy scale (gain and zero offset of the pulse processor) is part of the instrument profile
+      const s = P.edsFWHM(L.E, S.profile?.edsFWHM) / 2.355, Ep = L.E * (S.profile?.edsGain ?? 1) + (S.profile?.edsOffset ?? 0) / 1000;
+      for (let b = Math.max(0, Math.floor((Ep - 4 * s) / dE)); b <= Math.min(nb - 1, Math.ceil((Ep + 4 * s) / dE)); b++) {
         const e = (b + 0.5) * dE;
-        spec[b] += (I * dE * Math.exp(-0.5 * ((e - L.E) / s) ** 2)) / (s * 2.5066);
+        spec[b] += (I * dE * Math.exp(-0.5 * ((e - Ep) / s) ** 2)) / (s * 2.5066);
       }
     }
     for (let b = 0; b < nb; b++) {
@@ -440,6 +479,12 @@ export class Sim {
   // ------------------------------------------------------------------ main update
   update(dt) {
     const S = this.S, m = S.mode;
+    this.clock += dt;
+    // focus wobbler: flip the focus offset every 0.3 s (an off-axis aperture then makes the image sway)
+    if (S.wobble && ['se', 'inlens', 'bse'].includes(m) && !S.paused) {
+      this.wobT += dt;
+      if (this.wobT > 0.3 || !this.wob) { this.wobT = 0; this.wob = (this.wob > 0 ? -1 : 1) * this.wobbleAmp(); this.stale.img = 1; }
+    } else if (this.wob) { this.wob = 0; this.stale.img = 1; }
     if (['se', 'inlens', 'bse'].includes(m)) {
       if (this.stale.img) { this.computeImage(); this.stale.img = 0; this.version++; }
       if (!S.paused) {

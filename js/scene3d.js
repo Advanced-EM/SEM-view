@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as P from './physics.js';
 
-export const Y = { tank: 7.3, gun: 6.6, anode: 6.2, cond: 5.3, ap: 4.6, inlens: 4.05, scan: 3.45, obj: 2.8, tip: 1.72, ceil: 2.0, floor: -2.6 };
+export const Y = { tank: 7.3, gun: 6.6, emitter: 6.76, extractor: 6.67, anode: 6.2, cond: 5.3, ap: 4.6, inlens: 4.05, stig: 3.76, scan: 3.45, obj: 2.8, tip: 1.72, ceil: 2.0, floor: -2.6 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 export const specY = (wd) => Y.tip - wd * 0.085;
@@ -96,7 +96,7 @@ export class Scene3D {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050608);
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 200);
-    this.home = { pos: new THREE.Vector3(13.2, 6.4, 21.5), target: new THREE.Vector3(0, 2.4, 0) };
+    this.home = { pos: new THREE.Vector3(14.6, 7.6, 24.2), target: new THREE.Vector3(0, 3.3, 0) }; // the gun sits clear of the mode bar
     this.camera.position.copy(this.home.pos);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.target.copy(this.home.target);
@@ -126,14 +126,37 @@ export class Scene3D {
   build() {
     const M = this.M, S = this.scene, col = new THREE.Group();
     S.add(col);
-    // gun + HV tank
-    col.add(halfSolid([[0.3, 6.9], [1.05, 6.9], [1.05, 7.9], [0.3, 7.9]], M.iron, M.cut));
-    for (let i = 0; i < 6; i++) col.add(halfSolid(rectPts(0.18, 0.36, 7.0 + i * 0.14, 7.09 + i * 0.14), M.ceramic, M.ceramic, 40));
-    col.add(halfSolid([[0.08, 6.55], [0.36, 6.55], [0.36, 6.9], [0.3, 6.9], [0.3, 6.61], [0.08, 6.61]], M.plat, M.cut));
-    this.tipMat = new THREE.MeshBasicMaterial({ color: 0xc8ffd6 });
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 16), this.tipMat); tip.rotation.x = Math.PI; tip.position.y = 6.68; col.add(tip);
-    this.tipGlow = this.sprite(0x8dffae, 0.8); this.tipGlow.position.set(0, 6.58, 0); col.add(this.tipGlow);
-    col.add(halfSolid(rectPts(0.05, 0.6, Y.anode - 0.03, Y.anode + 0.04), M.plat, M.cut));
+    // Schottky field-emission gun, top to bottom: HV cable and ceramic insulator, the emitter (a W(100) tip
+    // spot-welded to a heated tungsten hairpin, with a ZrO2 reservoir on its shank), the suppressor cap the tip
+    // pokes through, the extractor, the electrostatic gun lens and the grounded anode; the gun chamber is kept at
+    // ~1e-9 mbar by an ion getter pump and closed off from the column by an isolation valve
+    col.add(halfSolid([[0.3, 7.0], [1.05, 7.0], [1.05, 7.9], [0.3, 7.9]], M.iron, M.cut)); // HV tank (cable entry)
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 16), M.dark); cable.position.set(0.55, 8.2, -0.25); cable.rotation.z = -0.5; col.add(cable);
+    col.add(halfSolid([[0.06, 6.98], [0.16, 6.98], [0.3, 7.75], [0.06, 7.75]], M.ceramic, M.ceramic, 40)); // conical HV insulator
+    for (let i = 0; i < 5; i++) col.add(halfSolid(rectPts(0.16 + i * 0.028, 0.2 + i * 0.028, 7.08 + i * 0.13, 7.13 + i * 0.13), M.ceramic, M.ceramic, 40)); // its sheds
+    col.add(halfSolid([[0.36, 6.05], [0.44, 6.05], [0.44, 7.0], [0.36, 7.0]], M.iron, M.cut)); // UHV gun chamber wall
+    // emitter: hairpin legs, the tip with its zirconia reservoir bead
+    const hp = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.8, roughness: 0.4, emissive: 0xff6a1a, emissiveIntensity: 0.12 }); // dull orange: the hairpin runs at ~1800 K
+    for (const sx of [-1, 1]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 8), hp); leg.position.set(sx * 0.035, 6.885, 0); leg.rotation.z = sx * 0.42; col.add(leg); }
+    for (const sx of [-1, 1]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.12, 8), M.plat); post.position.set(sx * 0.068, 7.02, 0); col.add(post); }
+    this.tipMat = new THREE.MeshStandardMaterial({ color: 0xb8bec6, metalness: 0.9, roughness: 0.3, emissive: 0x3dff7a, emissiveIntensity: 0.25 });
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.11, 16), this.tipMat); tip.rotation.x = Math.PI; tip.position.y = 6.765; col.add(tip);
+    const zro = new THREE.Mesh(new THREE.SphereGeometry(0.016, 12, 10), new THREE.MeshStandardMaterial({ color: 0xf2efe4, roughness: 0.7 })); zro.position.y = 6.79; col.add(zro);
+    this.tipGlow = this.sprite(0x8dffae, 0.8); this.tipGlow.position.set(0, 6.71, 0); col.add(this.tipGlow);
+    // suppressor cap (a few hundred volts below the tip): a cup round the emitter with the tip just through its hole
+    col.add(halfSolid([[0.03, 6.735], [0.15, 6.735], [0.15, 6.96], [0.13, 6.96], [0.13, 6.755], [0.03, 6.755]], M.cut, M.cut, 40));
+    // extractor (+4–7 kV above the tip), gun lens electrode, grounded anode
+    col.add(halfSolid(rectPts(0.015, 0.34, 6.66, 6.685), M.plat, M.cut, 40));
+    col.add(halfSolid([[0.04, 6.44], [0.3, 6.44], [0.3, 6.56], [0.27, 6.56], [0.27, 6.47], [0.04, 6.47]], M.plat, M.cut, 40));
+    col.add(halfSolid(rectPts(0.05, 0.36, Y.anode - 0.03, Y.anode + 0.04), M.plat, M.cut));
+    // ion getter pump on the gun chamber, and the gun isolation valve below the anode
+    const ipump = new THREE.Group();
+    const ib = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.36), M.iron); ipump.add(ib);
+    for (let i = 0; i < 5; i++) { const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.46, 0.4), M.dark); fin.position.x = -0.15 + i * 0.075; ipump.add(fin); }
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.42, 16), M.iron); neck.rotation.z = Math.PI / 2; neck.position.x = 0.4; ipump.add(neck);
+    ipump.position.set(-1.05, 6.62, -0.25); col.add(ipump); this.ionPump = ipump;
+    const valve = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.09, 0.3), M.iron); valve.position.set(0.55, 6.02, -0.2); col.add(valve);
+    const act = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 14), M.plat); act.rotation.z = Math.PI / 2; act.material = M.iron; act.position.set(1.33, 6.02, -0.2); col.add(act);
     // column wall
     col.add(halfSolid([[0.44, Y.ceil], [0.48, Y.ceil], [0.48, 6.9], [0.44, 6.9]], M.dark, M.cut));
     // condenser
@@ -150,6 +173,9 @@ export class Scene3D {
     // in-lens detector
     this.inlensMat = new THREE.MeshStandardMaterial({ color: 0x3a4250, metalness: 0.6, roughness: 0.35, emissive: 0x3dff7a, emissiveIntensity: 0, side: THREE.DoubleSide });
     const il = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.36, 48), this.inlensMat); il.rotation.x = -Math.PI / 2; il.position.y = Y.inlens; col.add(il);
+    // stigmator: an octupole of small coils whose quadrupole field cancels two-fold astigmatism (X and Y)
+    this.stigGroup = new THREE.Group(); col.add(this.stigGroup);
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, c = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.09, 10), M.copper); c.rotation.z = Math.PI / 2; c.rotation.y = -a; c.position.set(Math.cos(a) * 0.27, Y.stig, Math.sin(a) * 0.27); if (Math.sin(a) <= 0.01) this.stigGroup.add(c); }
     // scan coils
     for (const dy of [0.12, -0.12]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 12, 48, Math.PI), M.copper); t.rotation.x = -Math.PI / 2; t.position.y = Y.scan + dy; col.add(t); }
     // conical immersion objective lens
@@ -265,8 +291,8 @@ export class Scene3D {
   }
   buildLabels() {
     const L = [
-      ['Electron gun', () => [0.4, Y.gun, 0]], ['Condenser lens', () => [1.1, Y.cond, 0]], ['Beam-limiting aperture', () => [-0.5, Y.ap, 0], 'left'],
-      ['In-lens SE detector', () => [0.4, Y.inlens, 0]], ['Scan coils', () => [-0.4, Y.scan, 0], 'left'], ['Objective lens', () => [1.35, Y.obj, 0]],
+      ['Electron gun', () => [1.05, Y.tank + 0.3, 0]], ['Emitter, suppressor & extractor', () => [0.16, Y.emitter, 0]], ['Ion getter pump', () => this.ionPump.localToWorld(new THREE.Vector3(-0.22, 0.1, 0)).toArray(), 'left'], ['Condenser lens', () => [1.1, Y.cond, 0]], ['Beam-limiting aperture', () => [-0.5, Y.ap, 0], 'left'],
+      ['In-lens SE detector', () => [0.4, Y.inlens, 0]], ['Stigmator', () => [0.32, Y.stig, 0]], ['Scan coils', () => [0.32, Y.scan, 0]], ['Objective lens', () => [1.35, Y.obj, 0]],
       ['Specimen & stage', () => [0.55, this.anim.sy, 0.3]], ['Everhart–Thornley detector', () => this.etd.localToWorld(new THREE.Vector3(0, 0.3, -0.4)).toArray(), 'left'],
       ['BSE detector', () => this.bse.localToWorld(new THREE.Vector3(0.62, 0, 0)).toArray(), null, ['bse', 'ebsd']],
       ['EDS detector', () => this.eds.localToWorld(new THREE.Vector3(0, 0.25, -0.8)).toArray(), 'left'],
@@ -330,7 +356,7 @@ export class Scene3D {
     const spot = this.spot();
     // beam
     const apS = clamp(S.aperture / 30, 0.4, 2.2), pivotY = Y.scan - 0.15;
-    const keys = [[0, 6.62, 0, 0], [0, Y.anode, 0, 0.06], [0, Y.cond, 0, 0.16], [0, 4.9, 0, 0], [0, Y.ap, 0, -0.05 * apS], [0, pivotY, 0, -0.07 * apS], [-spot.x * 0.35, Y.obj, -spot.z * 0.35, -0.1 * apS], [spot.x, spot.y, spot.z, 0]];
+    const keys = [[0, 6.71, 0, 0], [0, Y.extractor, 0, 0.012], [0, Y.anode, 0, 0.06], [0, Y.cond, 0, 0.16], [0, 4.9, 0, 0], [0, Y.ap, 0, -0.05 * apS], [0, pivotY, 0, -0.07 * apS], [-spot.x * 0.35, Y.obj, -spot.z * 0.35, -0.1 * apS], [spot.x, spot.y, spot.z, 0]];
     this.beam.set(keys);
     const edu = S.clarity !== 'real';
     const bright = clamp(0.45 + 0.15 * Math.log10(S.current / 10), 0.25, 1.1);
@@ -342,7 +368,7 @@ export class Scene3D {
     const Rk = P.rangeKO(P.MAT[sim.spec.sample(S.cx, S.cy).mat].rho ? P.MAT[sim.spec.sample(S.cx, S.cy).mat] : P.MAT.C, S.kV);
     this.ivol.position.copy(spot).add(new THREE.Vector3(0, -0.02, 0));
     this.ivol.scale.setScalar((m === 'mc' ? 0.45 : 0.16) * clamp(0.5 + Math.log10(1 + Rk * 3), 0.4, 2.2));
-    this.tipGlow.scale.setScalar(0.5 + 0.5 * (S.kV / 30));
+    this.tipGlow.scale.setScalar(0.16 + 0.12 * (S.kV / 30)); // a small spot at the apex, so the electrodes around it stay visible
     this.scintMat.color.set(m === 'se' ? (S.etdBias >= 0 ? 0x5fe38a : 0x2a6b3c) : 0x1f3a26);
     this.inlensMat.emissiveIntensity = m === 'inlens' ? 0.5 + 0.2 * Math.sin(this.time * 7) : 0;
     this.edsWin.color.set(m === 'eds' ? 0xffb45e : 0x3a2a14);

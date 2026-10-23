@@ -1,2 +1,12 @@
 .DS_Store
 .claude/
+build/
+node_modules/
+.wrangler/
+semview-out/
+sessions/
+
+# Python build files
+*.egg-info/
+__pycache__/
+.pytest_cache/

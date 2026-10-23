@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semview"
+version = "0.1.0"
+description = "Script the SEM-view scanning electron microscope simulator (a digital twin) from Python"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+live = ["websockets>=13"]
+plot = ["matplotlib"]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["semview"]
+
+[tool.setuptools.package-data]
+semview = ["driver.mjs"]
