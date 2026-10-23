@@ -6,7 +6,7 @@
 //   url: 'https://sem-view-collector.<subdomain>.workers.dev/submit'
 // dataset is the Hugging Face dataset the collector commits to (and that hf/build_dataset.py builds).
 export const SHARE = {
-  url: '',
+  url: 'https://sem-view-collector.tem-view.workers.dev/submit',
   dataset: 'rmsreis/sem-view-alignment',
 };
 
