@@ -21,10 +21,11 @@ const SETTINGS = {
   wd_mm: 'working distance, 2–20', focus_um: 'focus offset (the knob)', stig_x: 'stigmator X (µm)', stig_y: 'stigmator Y (µm)', aperture_x_um: 'aperture alignment X', aperture_y_um: 'aperture alignment Y',
   fov_um: 'horizontal field of view', stage_um: '[x, y] stage position', tilt_deg: 'stage tilt, 0–72', dwell_us: 'pixel dwell time', coated: 'carbon coating, True or False',
   etd_bias_V: 'ETD Faraday cage bias, −150 to +300', bse: 'comp, topoX or topoY', segments: '{"A": 1, "B": -1, "C": 0, "D": 0}', realistic: 'shot noise (True) or the clean view',
+  cl_mode: 'pan (panchromatic) or mono', cl_wavelength_nm: 'monochromator centre, 300–800', cl_band_nm: 'monochromator bandwidth',
   beam: 'True (on) or False (blanked)', wobbler: 'focus wobbler on or off', map_size: '24, 40 or 56 (EBSD/TKD)', exposure_ms: 'EBSD pattern exposure', foil_nm: 'TKD foil thickness', trajectories: 'Monte Carlo electrons',
 };
 const KEY = { kV: 'kV', current_pA: 'current', aperture_um: 'aperture', wd_mm: 'wd', focus_um: 'focus', stig_x: 'stigX', stig_y: 'stigY', aperture_x_um: 'apX', aperture_y_um: 'apY', fov_um: 'fov', tilt_deg: 'tilt',
-  dwell_us: 'dwell', etd_bias_V: 'etdBias', map_size: 'mapN', exposure_ms: 'expo', foil_nm: 'tkdThick', trajectories: 'mcMax' };
+  dwell_us: 'dwell', etd_bias_V: 'etdBias', map_size: 'mapN', exposure_ms: 'expo', foil_nm: 'tkdThick', trajectories: 'mcMax', cl_wavelength_nm: 'clLam', cl_band_nm: 'clBand' };
 
 export function settingsToOps(a) {
   const bad = Object.keys(a).filter((k) => !(k in SETTINGS));
@@ -40,6 +41,7 @@ export function settingsToOps(a) {
   if (a.bse !== undefined) { if (!SEG_PRESETS[a.bse]) throw new Error('bse must be comp, topoX or topoY'); ops.push({ op: 'chip', k: 'bseMode', v: a.bse }); }
   if (a.segments !== undefined) ops.push({ op: 'seg', v: a.segments });
   if (a.wobbler !== undefined) ops.push({ op: 'setWobble', v: !!a.wobbler });
+  if (a.cl_mode !== undefined) { if (!['pan', 'mono'].includes(a.cl_mode)) throw new Error('cl_mode must be pan or mono'); ops.push({ op: 'set', k: 'clMode', v: a.cl_mode }); }
   if (a.beam !== undefined) ops.push({ op: 'beam', v: !a.beam });
   return ops;
 }

@@ -20,10 +20,7 @@ export function blurRatio(S, sim) {
 }
 const smooth = (E, w) => Math.round(E <= 1 ? 100 : 100 * Math.exp(-(((E - 1) / w) ** 2)));
 // an alumina inclusion near the origin of the nickel specimen
-function inclusion() {
-  for (let r = 0; r < 400; r += 3) for (let a = 0; a < 6.28; a += 0.2) { const x = r * Math.cos(a), y = r * Math.sin(a); if (P.SPECIMENS.ni.sample(x, y).mat === 'Al2O3') return [x, y]; }
-  return [0, 0];
-}
+const inclusion = () => P.SPECIMENS.ni.inclusion();
 
 export const SCENARIOS = {
   'sem-focus-stig': {

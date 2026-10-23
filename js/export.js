@@ -61,6 +61,25 @@ export function collectData(sim, S) {
     arrays.spectrum = A(a?.total ? a.spec : e.spec, [e.nb], a?.total ? 'counts' : 'probability per channel');
     for (const [sym, map] of Object.entries(a?.maps ?? {})) arrays[`map_${sym}`] = A(map, [e.n, e.n], 'X-ray counts');
     Object.assign(cal, { energy_keV_per_bin: e.dE, energy_start_keV: 0, map_pixel_um: S.fov / e.n, live_time_s: a?.t ?? 0, total_counts: a?.total ?? 0, takeoff_deg: 35 });
+  } else if (m === 'cl' && sim.cl) {
+    const c = sim.cl, a = sim.clAcc, n = c.n;
+    arrays.image = A(recordFrame(c.img, S), [n, n], `${S.clMode === 'pan' ? 'panchromatic' : `${S.clLam} ± ${S.clBand / 2} nm`} CL, photons per pixel`);
+    arrays.spectrum = A(a?.frames ? a.spec : c.spec, [c.nb], a?.frames ? 'counts' : 'relative intensity');
+    arrays.wavelength_nm = A(Float32Array.from({ length: c.nb }, (_, b) => c.l0 + (b + 0.5) * c.dl), [c.nb], 'nm (bin centres)');
+    // hyperspectral cube: every pixel's spectrum, binned 2× in space and to 4 nm
+    const m2 = n / 2, nl = c.nb / 2, cube = new Float32Array(m2 * m2 * nl);
+    for (const comp of c.list) {
+      const sE = comp.w / 2.355;
+      for (let j = 0; j < m2; j++) for (let i = 0; i < m2; i++) {
+        let A0 = 0, E0 = 0;
+        for (const [dj, di] of [[0, 0], [0, 1], [1, 0], [1, 1]]) { const k = (2 * j + dj) * n + 2 * i + di; A0 += comp.A[k]; E0 += comp.E[k] * comp.A[k]; }
+        if (!A0) continue;
+        E0 /= A0;
+        for (let b = 0; b < nl; b++) { const lam = c.l0 + (b + 0.5) * 2 * c.dl, E = P.HC / lam; cube[(j * m2 + i) * nl + b] += (A0 * Math.exp(-0.5 * ((E - E0) / sE) ** 2) * (P.HC / (lam * lam)) * 2 * c.dl) / (sE * 2.5066) * P.ccdQE(lam); }
+      }
+    }
+    arrays.hyperspectral = A(cube, [m2, m2, nl], 'relative intensity; axes: y, x, wavelength (4 nm bins from 300 nm)');
+    Object.assign(cal, { pixel_um: S.fov / n, cube_pixel_um: (2 * S.fov) / n, wavelength_start_nm: c.l0, wavelength_nm_per_bin: c.dl, cube_nm_per_bin: 2 * c.dl, window_nm: c.window, mode: S.clMode, generation_spread_um: c.sg, acquisition_s: a?.t ?? 0 });
   } else if (m === 'mc' && sim.mc) {
     const mc = sim.mc;
     arrays.backscatter_energy = A(mc.bseE, [mc.bseE.length], 'electrons per E/E0 bin'); arrays.energy_vs_depth = A(mc.depthE, [mc.bins], 'keV deposited per depth bin');

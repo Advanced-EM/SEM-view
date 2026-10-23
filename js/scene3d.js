@@ -249,6 +249,20 @@ export class Scene3D {
     const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.25, 36), M.iron); tb.position.y = -0.14; this.tkd.add(tb);
     const tarm = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 0.2), M.iron); tarm.position.set(1.9, -0.14, 0); this.tkd.add(tarm);
     col.add(this.tkd);
+    // CL: a paraboloidal mirror (focus at the beam spot, a hole on axis for the beam) slides in above the specimen;
+    // the collected light leaves sideways through a light guide to the spectrometer and photomultiplier on a port
+    this.clGroup = new THREE.Group();
+    const f = 0.2, mpts = [];
+    for (let i = 0; i <= 24; i++) { const h = 0.19 - (i / 24) * 0.12, r = Math.sqrt(Math.max(0, 4 * f * (f - h))); mpts.push(new THREE.Vector2(Math.max(0.03, r), h)); }
+    const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xd8dde4, metalness: 1, roughness: 0.12, side: THREE.DoubleSide, envMapIntensity: 0.9 });
+    this.clGroup.add(new THREE.Mesh(new THREE.LatheGeometry(mpts, 48, Math.PI / 2, Math.PI), mirrorMat));
+    const guide = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 3.2, 20), M.iron); guide.rotation.z = Math.PI / 2; guide.position.set(1.95, 0.12, 0); this.clGroup.add(guide);
+    const spectro = new THREE.Group(), sb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.7), M.iron); spectro.add(sb);
+    const pmt2 = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.5, 18), M.dark); pmt2.position.set(0.15, 0.5, 0); spectro.add(pmt2);
+    this.clGrating = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.28), new THREE.MeshBasicMaterial({ color: 0x6fd6ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+    this.clGrating.position.set(0, 0, 0.36); spectro.add(this.clGrating);
+    spectro.position.set(3.95, 0.12, 0); this.clGroup.add(spectro); this.spectro = spectro;
+    col.add(this.clGroup);
     // interaction-volume glow
     this.ivol = this.sprite(0x3dff7a, 0.3); col.add(this.ivol);
     this.floorDisk = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({ color: 0x07080a, metalness: 0.4, roughness: 0.75 }));
@@ -298,6 +312,7 @@ export class Scene3D {
       ['EDS detector', () => this.eds.localToWorld(new THREE.Vector3(0, 0.25, -0.8)).toArray(), 'left'],
       ['EBSD detector', () => this.ebsd.localToWorld(new THREE.Vector3(0.6, 0.3, 0)).toArray(), null, ['ebsd']],
       ['TKD detector', () => this.tkd.localToWorld(new THREE.Vector3(0.55, 0, 0)).toArray(), null, ['tkd']],
+      ['CL mirror & spectrometer', () => this.spectro.localToWorld(new THREE.Vector3(0.1, 0.4, 0)).toArray(), null, ['cl']],
       ['Vacuum chamber', () => [3.2, Y.floor + 0.4, -2.6]],
     ];
     this.labels = L.map(([text, pos, side, modes]) => {
@@ -344,6 +359,17 @@ export class Scene3D {
     A.ebsd = lerp(A.ebsd, ebsdOn ? 1 : 0, k);
     this.ebsd.position.set(0, A.sy - 0.25, lerp(-3.4, -1.25, A.ebsd));
     this.ebsd.visible = A.ebsd > 0.02;
+    A.cl = lerp(A.cl ?? 0, m === 'cl' ? 1 : 0, k);
+    this.clGroup.position.set((1 - A.cl) * 2.6, A.sy, 0);
+    this.clGroup.visible = A.cl > 0.02;
+    if (m === 'cl' && sim.cl) {
+      // the light's colours, for the photons drawn to the mirror
+      const cols = [];
+      for (const c of sim.cl.list) { let a = 0, e = 0; for (let q = 0; q < c.A.length; q += 7) { a += c.A[q]; e += c.E[q] * c.A[q]; } if (a) cols.push([a, P.lamRGB(P.HC / (e / a))]); }
+      const tot = cols.reduce((s, c) => s + c[0], 0);
+      this.clCols = cols.map(([a, rgb]) => [a / (tot || 1), rgb]);
+      this.clGrating.material.color.setRGB(...(S.clMode === 'pan' ? [0.8, 0.85, 0.95] : P.lamRGB(S.clLam)));
+    }
     A.tkd = lerp(A.tkd, tkdOn ? 1 : 0, k);
     this.tkd.position.set((1 - A.tkd) * 3, A.sy - 0.95, 0);
     this.tkd.visible = A.tkd > 0.02;
@@ -419,6 +445,15 @@ export class Scene3D {
         else if (m === 'ebsd') { s.b = this.ebsdScreen.localToWorld(new V((Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9, 0)); s.kind = 'line'; s.col = [0.6, 1, 0.7]; s.speed = 2; }
         else if (m === 'tkd') { s.b = this.tkdScreen.localToWorld(new V((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.8, 0)); s.kind = 'line'; s.col = [0.6, 1, 0.7]; s.speed = 2; }
         else if (m === 'eds') { s.b = edsWin.clone().add(rnd().multiplyScalar(0.15)); s.kind = 'line'; s.col = [1, 0.7, 0.35]; s.speed = 3; }
+        else if (m === 'cl' && this.clCols?.length) {
+          // a photon: up to the mirror, which sends it sideways into the light guide
+          let u = Math.random(), rgb = this.clCols[0][1];
+          for (const [w, c] of this.clCols) { if ((u -= w) <= 0) { rgb = c; break; } }
+          const a = Math.random() * Math.PI + Math.PI / 2, r = 0.12 + Math.random() * 0.15;
+          s.c = new V(spot.x + Math.sin(a) * r, spot.y + 0.19 - (r * r) / 0.8, spot.z + Math.cos(a) * r);
+          s.b = new V(this.clGroup.position.x + 3.5, spot.y + 0.12 + (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.1);
+          s.kind = 'bounce'; s.col = rgb.map((v) => 0.3 + 0.7 * v); s.speed = 1.4;
+        }
         else { s.life = -1; sSize[i] = 0; continue; }
       }
       s.t += dt * sp * s.speed;
@@ -426,6 +461,7 @@ export class Scene3D {
       let p;
       if (s.kind === 'curve') { const u = s.t, a = s.a.clone().multiplyScalar((1 - u) * (1 - u)), c = s.c.clone().multiplyScalar(2 * u * (1 - u)), b = s.b.clone().multiplyScalar(u * u); p = a.add(c).add(b); }
       else if (s.kind === 'helix') { const u = s.t, r = 0.18 * (1 - u) + 0.02, ang = u * 18 + i; p = new V(spot.x * (1 - u) + Math.cos(ang) * r, spot.y + u * (Y.inlens - spot.y), spot.z * (1 - u) + Math.sin(ang) * r); }
+      else if (s.kind === 'bounce') p = s.t < 0.3 ? s.a.clone().lerp(s.c, s.t / 0.3) : s.c.clone().lerp(s.b, (s.t - 0.3) / 0.7);
       else p = s.a.clone().lerp(s.b, s.t);
       sPos[i * 3] = p.x; sPos[i * 3 + 1] = p.y; sPos[i * 3 + 2] = p.z;
       sSize[i] = m === 'eds' ? 0.07 : 0.05; sCol.set(s.col, i * 3);

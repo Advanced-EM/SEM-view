@@ -5,7 +5,7 @@ import * as P from './physics.js';
 import { analyze } from './analyze.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-export const MODES = ['se', 'inlens', 'bse', 'ebsd', 'tkd', 'eds', 'mc'];
+export const MODES = ['se', 'inlens', 'bse', 'ebsd', 'tkd', 'eds', 'cl', 'mc'];
 export const IMAGING = ['se', 'inlens', 'bse'];
 export const APERTURES = [10, 20, 30, 60, 120];
 export const MAP_SIZES = [24, 40, 56];
@@ -16,7 +16,7 @@ export const focusRange = (S) => Math.max(0.3, Math.min(60, S.fov * 0.6));
 // every numeric setting: [min, max, digits]; functions take the state
 export const LIMITS = {
   kV: [0.5, 30, 1], current: [1, 20000, 1], wd: [2, 20, 1], tilt: [0, 72, 1], dwell: [0.1, 30, 2], etdBias: [-150, 300, 0],
-  tkdThick: [20, 400, 0], expo: [1, 50, 0], mcMax: [200, 6000, 0], stigX: [-2, 2, 3], stigY: [-2, 2, 3], apX: [-40, 40, 2], apY: [-40, 40, 2],
+  tkdThick: [20, 400, 0], expo: [1, 50, 0], clLam: [300, 800, 0], clBand: [2, 100, 0], mcMax: [200, 6000, 0], stigX: [-2, 2, 3], stigY: [-2, 2, 3], apX: [-40, 40, 2], apY: [-40, 40, 2],
   focus: [(S) => -focusRange(S), (S) => focusRange(S), 4], fov: [(S, sim) => sim.spec.fovMin, (S, sim) => sim.spec.fovMax, 4],
 };
 const UI_ONLY = ['speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotate', 'paused', 'showHough'];
@@ -39,6 +39,8 @@ export function modeState(S, sim, m) {
   if (m === 'ebsd') { if (!['ni', 'chip'].includes(S.spec)) quietSpec('ni'); S.tilt = 70; S.kV = Math.max(S.kV, 20); S.current = Math.max(S.current, 3000); S.wd = Math.max(S.wd, 14); }
   if (m === 'tkd') { if (S.spec !== 'chip') quietSpec('chip'); S.tilt = 0; S.kV = Math.max(S.kV, 30); S.current = Math.max(S.current, 2000); S.wd = Math.min(S.wd, 5); }
   if (m === 'eds') { S.kV = Math.max(S.kV, 15); S.current = Math.max(S.current, 1000); if (prev === 'ebsd') S.tilt = 0; }
+  // CL: a luminescent specimen, the parabolic mirror inserted (it needs ~10 mm working distance), nanoamps
+  if (m === 'cl') { if (!P.SPECIMENS[S.spec].luminescent || S.spec === 'chip') quietSpec('gan'); S.tilt = 0; S.wd = 10; S.kV = clamp(S.kV, 3, 15); S.current = Math.max(S.current, 1000); if (S.spec === 'ni') { [S.cx, S.cy] = P.SPECIMENS.ni.inclusion(); S.fov = 18; } }
   if (IMAGING.includes(m) && prev === 'ebsd') S.tilt = 0;
   if (m === 'inlens') S.wd = Math.min(S.wd, 4);
   S.focus = clamp(S.focus, -focusRange(S), focusRange(S));
@@ -57,6 +59,7 @@ export function setState(S, sim, key, v, inv = key) {
   if (S[key] === v) return null;
   S[key] = v;
   if (key === 'fov') S.focus = clamp(S.focus, -focusRange(S), focusRange(S));
+  if (key === 'clLam' || key === 'clBand') S.clMode = 'mono'; // choosing a wavelength means a monochromatic image
   if (!UI_ONLY.includes(key)) sim.invalidate(inv);
   if (key === 'showHough') sim.version++;
   return v;
@@ -88,6 +91,7 @@ export function runOpState(S, sim, op) {
     case 'set':
       if (op.k === 'clarity') { if (['edu', 'real'].includes(op.v)) { S.clarity = op.v; sim.invalidate('clarity'); } return true; }
       if (op.k === 'coated' || op.k === 'showHough') { setState(S, sim, op.k, !!op.v); return true; }
+      if (op.k === 'clMode') { if (['pan', 'mono'].includes(op.v)) setState(S, sim, 'clMode', op.v); return true; }
       setState(S, sim, op.k, op.v); op.v = S[op.k]; return true;
     case 'chip':
       if (op.k === 'bseMode' && SEG_PRESETS[op.v]) { if (S.mode !== 'bse') modeState(S, sim, 'bse'); segState(S, sim, SEG_PRESETS[op.v]); }
@@ -115,7 +119,7 @@ export function runOpState(S, sim, op) {
 
 // how many simulation steps until the detectors show the current settings (an EBSD map takes a while)
 export function settle(S, sim, steps) {
-  const n = steps ?? ({ ebsd: 400, tkd: 400, eds: 60, mc: 120 }[S.mode] ?? 2);
+  const n = steps ?? ({ ebsd: 400, tkd: 400, eds: 60, cl: 40, mc: 120 }[S.mode] ?? 2);
   for (let i = 0; i < n; i++) {
     sim.update(0.05);
     if ((S.mode === 'ebsd' || S.mode === 'tkd') && sim.map && sim.map.done >= sim.map.N * sim.map.N) break;

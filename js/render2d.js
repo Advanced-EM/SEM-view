@@ -99,7 +99,7 @@ export function draw(sim, S, mainCv, secCv, hover) {
   const m = fit(mainCv), s = fit(secCv);
   m.ctx.fillStyle = C.bg; m.ctx.fillRect(0, 0, m.W, m.H);
   s.ctx.fillStyle = C.bg; s.ctx.fillRect(0, 0, s.W, s.H);
-  ({ se: drawImage, inlens: drawImage, bse: drawImage, ebsd: drawMap, tkd: drawMap, eds: drawEDS, mc: drawMC })[S.mode](sim, S, m, s, hover);
+  ({ se: drawImage, inlens: drawImage, bse: drawImage, ebsd: drawMap, tkd: drawMap, eds: drawEDS, cl: drawCL, mc: drawMC })[S.mode](sim, S, m, s, hover);
 }
 
 // ------------------------------------------------------------------ SE / In-lens / BSE images
@@ -415,6 +415,71 @@ function drawEDS(sim, S, m, s) {
   if (missing.length) label(q, `U = E₀/Ec < 1.5 for ${[...new Set(missing.map((l) => `${l.el} ${l.line.startsWith('K') ? 'K' : l.line[0]}`))].join(', ')}: weak or absent`, x0, y0 + h - 12 * d, d, { color: C.warm, size: 8.5 });
 }
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+// ------------------------------------------------------------------ cathodoluminescence
+function drawCL(sim, S, m, s) {
+  const c = sim.cl, a = sim.clAcc;
+  if (!c) return;
+  const { ctx, W, H, dpr } = m, n = c.n, { c: oc, ctx: octx, id } = off(n, n);
+  let mx = 0;
+  for (let k = 0; k < n * n; k++) mx = Math.max(mx, c.img[k]);
+  // educational: the light in its own colours; realistic: what the photomultiplier records, with shot noise
+  const counts = Math.max(1, S.current * 0.004 * S.dwell * (real(S) ? 1 : 10));
+  for (let k = 0; k < n * n; k++) {
+    let v = c.img[k] / (mx || 1);
+    if (real(S)) v = P.poisson(v * counts) / counts;
+    const p = k * 4;
+    if (real(S) || S.clMode === 'mono') {
+      const tint = real(S) ? [1, 1, 1] : P.lamRGB(S.clLam), g = Math.min(1, v) * 255;
+      id.data[p] = g * (0.35 + 0.65 * tint[0]); id.data[p + 1] = g * (0.35 + 0.65 * tint[1]); id.data[p + 2] = g * (0.35 + 0.65 * tint[2]);
+    } else {
+      const r0 = c.rgb[k * 3], g0 = c.rgb[k * 3 + 1], b0 = c.rgb[k * 3 + 2], t = Math.max(r0, g0, b0) || 1, k2 = Math.min(1, v * 1.2) * 255;
+      id.data[p] = (r0 / t) * k2; id.data[p + 1] = (g0 / t) * k2; id.data[p + 2] = (b0 / t) * k2;
+    }
+    id.data[p + 3] = 255;
+  }
+  octx.putImageData(id, 0, 0);
+  ctx.imageSmoothingEnabled = !real(S);
+  ctx.drawImage(oc, 0, 0, n, n, 0, 0, W, H);
+  scaleBar(ctx, W, H, S.fov, dpr);
+  label(ctx, S.clMode === 'pan' ? 'panchromatic (all light, PMT)' : `${S.clLam} ± ${S.clBand / 2} nm`, 8 * dpr, 16 * dpr, dpr, { color: S.clMode === 'pan' ? C.text : rgbCss(P.lamRGB(S.clLam)) });
+  label(ctx, `generation volume ≈ ${fmtLen(2 * c.sg)} across`, 8 * dpr, H - 14 * dpr, dpr, { color: C.warm, size: 9 });
+  if (!mx) label(ctx, 'no luminescence here: try GaN, or an alumina inclusion in nickel', W / 2, H / 2, dpr, { color: C.warm, align: 'center' });
+  // spectrum (CCD behind the spectrometer), with the monochromator window
+  const q = s.ctx, d = s.dpr, x0 = 38 * d, y0 = 16 * d, w = s.W - x0 - 10 * d, h = s.H - y0 - 30 * d;
+  layout.cl = { x0: x0 / d, w: w / d, l0: c.l0, l1: c.l1 };
+  const data = real(S) && a?.frames > 3 ? a.spec : c.spec, X = (l) => x0 + ((l - c.l0) / (c.l1 - c.l0)) * w;
+  let top = 0;
+  for (let b = 0; b < c.nb; b++) top = Math.max(top, data[b]);
+  // the visible spectrum as a strip under the axis
+  for (let l = c.l0; l < c.l1; l += 2) { const col = P.lamRGB(l); q.fillStyle = rgbCss(col, l < 390 || l > 720 ? 0.35 : 0.8); q.fillRect(X(l), y0 + h + 1 * d, Math.ceil((2 / (c.l1 - c.l0)) * w) + 1, 3 * d); }
+  q.strokeStyle = C.grid; q.lineWidth = 1 * d; font(q, 9, d); q.fillStyle = C.muted; q.textAlign = 'center'; q.textBaseline = 'top';
+  for (let l = 300; l <= 800; l += 100) { q.beginPath(); q.moveTo(X(l), y0); q.lineTo(X(l), y0 + h); q.stroke(); q.fillText(`${l}`, X(l), y0 + h + 7 * d); }
+  q.fillText('nm', x0 + w - 8 * d, y0 + h + 17 * d); q.textAlign = 'left';
+  if (S.clMode === 'mono') { q.fillStyle = 'rgba(111,214,255,0.12)'; q.fillRect(X(c.window[0]), y0, Math.max(2 * d, X(c.window[1]) - X(c.window[0])), h); }
+  q.beginPath();
+  for (let b = 0; b < c.nb; b++) { const x = X(c.l0 + (b + 0.5) * c.dl), y = y0 + h - Math.min(1, data[b] / (top || 1)) * h * 0.92; b ? q.lineTo(x, y) : q.moveTo(x, y); }
+  q.lineTo(x0 + w, y0 + h); q.lineTo(x0, y0 + h); q.closePath();
+  const gg = q.createLinearGradient(x0, 0, x0 + w, 0);
+  for (let l = c.l0; l <= c.l1; l += 25) gg.addColorStop((l - c.l0) / (c.l1 - c.l0), rgbCss(P.lamRGB(l), 0.45));
+  q.fillStyle = gg; q.fill(); q.strokeStyle = C.text; q.lineWidth = 1.1 * d; q.stroke();
+  // band labels where the spectrum peaks
+  const placed = [];
+  for (const comp of c.list) {
+    let E = 0, A = 0;
+    for (let k = 0; k < comp.A.length; k += 3) { E += comp.E[k] * comp.A[k]; A += comp.A[k]; }
+    if (!A) continue;
+    const l = P.HC / (E / A); if (l < c.l0 || l > c.l1) continue;
+    const b = Math.floor((l - c.l0) / c.dl), pk = Math.max(...Array.from(data.slice(Math.max(0, b - 3), b + 4)));
+    if (pk < 0.03 * top) continue;
+    const x = X(l), y = Math.max(y0 + 8 * d, y0 + h - (pk / top) * h * 0.92 - 12 * d);
+    if (placed.some((p) => Math.abs(p[0] - x) < 60 * d && Math.abs(p[1] - y) < 14 * d)) continue;
+    placed.push([x, y]);
+    label(q, `${comp.id} ${Math.round(l)} nm`, x, y, d, { color: C.text, size: 8.5, align: 'center' });
+  }
+  label(q, 'click the spectrum to image one wavelength', x0 + w, y0 + h - 12 * d, d, { color: C.muted, size: 8.5, align: 'right' });
+}
+const rgbCss = ([r, g, b], a = 1) => `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
 
 // ------------------------------------------------------------------ Monte Carlo
 function drawMC(sim, S, m, s) {

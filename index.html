@@ -8,37 +8,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=202610231804">
+<link rel="stylesheet" href="css/style.css?v=202610231827">
 <script type="importmap">
 {
  "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-  "./js/acquire.js": "./js/acquire.js?v=202610231804",
-  "./js/agent.js": "./js/agent.js?v=202610231804",
-  "./js/analyze.js": "./js/analyze.js?v=202610231804",
-  "./js/calibrate.js": "./js/calibrate.js?v=202610231804",
-  "./js/calibui.js": "./js/calibui.js?v=202610231804",
-  "./js/components.js": "./js/components.js?v=202610231804",
-  "./js/config.js": "./js/config.js?v=202610231804",
-  "./js/explain.js": "./js/explain.js?v=202610231804",
-  "./js/export.js": "./js/export.js?v=202610231804",
-  "./js/ide.js": "./js/ide.js?v=202610231804",
-  "./js/main.js": "./js/main.js?v=202610231804",
-  "./js/npy.js": "./js/npy.js?v=202610231804",
-  "./js/ops.js": "./js/ops.js?v=202610231804",
-  "./js/panel.js": "./js/panel.js?v=202610231804",
-  "./js/physics.js": "./js/physics.js?v=202610231804",
-  "./js/profile.js": "./js/profile.js?v=202610231804",
-  "./js/render2d.js": "./js/render2d.js?v=202610231804",
-  "./js/scenarios.js": "./js/scenarios.js?v=202610231804",
-  "./js/scene3d.js": "./js/scene3d.js?v=202610231804",
-  "./js/scripting.js": "./js/scripting.js?v=202610231804",
-  "./js/sim.js": "./js/sim.js?v=202610231804",
-  "./js/state.js": "./js/state.js?v=202610231804",
-  "./js/telemetry.js": "./js/telemetry.js?v=202610231804",
-  "./js/voice.js": "./js/voice.js?v=202610231804",
-  "./js/vpanel.js": "./js/vpanel.js?v=202610231804"
+  "./js/acquire.js": "./js/acquire.js?v=202610231827",
+  "./js/agent.js": "./js/agent.js?v=202610231827",
+  "./js/analyze.js": "./js/analyze.js?v=202610231827",
+  "./js/calibrate.js": "./js/calibrate.js?v=202610231827",
+  "./js/calibui.js": "./js/calibui.js?v=202610231827",
+  "./js/components.js": "./js/components.js?v=202610231827",
+  "./js/config.js": "./js/config.js?v=202610231827",
+  "./js/explain.js": "./js/explain.js?v=202610231827",
+  "./js/export.js": "./js/export.js?v=202610231827",
+  "./js/ide.js": "./js/ide.js?v=202610231827",
+  "./js/main.js": "./js/main.js?v=202610231827",
+  "./js/npy.js": "./js/npy.js?v=202610231827",
+  "./js/ops.js": "./js/ops.js?v=202610231827",
+  "./js/panel.js": "./js/panel.js?v=202610231827",
+  "./js/physics.js": "./js/physics.js?v=202610231827",
+  "./js/profile.js": "./js/profile.js?v=202610231827",
+  "./js/render2d.js": "./js/render2d.js?v=202610231827",
+  "./js/scenarios.js": "./js/scenarios.js?v=202610231827",
+  "./js/scene3d.js": "./js/scene3d.js?v=202610231827",
+  "./js/scripting.js": "./js/scripting.js?v=202610231827",
+  "./js/sim.js": "./js/sim.js?v=202610231827",
+  "./js/state.js": "./js/state.js?v=202610231827",
+  "./js/telemetry.js": "./js/telemetry.js?v=202610231827",
+  "./js/voice.js": "./js/voice.js?v=202610231827",
+  "./js/vpanel.js": "./js/vpanel.js?v=202610231827"
  }
 }
 </script>
@@ -51,13 +51,16 @@
   <p class="eyebrow">Interactive exhibit · Scanning electron microscopy</p>
   <h1>Scanning <em>with Electrons</em></h1>
   <p class="lede">A working scanning electron microscope. Surfaces, crystals and composition, built one pixel at a time from the physics of electrons in a solid. <span class="hint">Click any label on the instrument for the physics behind it.</span></p>
+  <div class="support"><a id="btnCoffee" class="spill coffee" target="_blank" rel="noopener" hidden><span aria-hidden="true">☕</span> Buy me a coffee</a><button id="btnNews" class="spill" type="button"><span aria-hidden="true">✉</span> Subscribe for news</button><a class="spill" href="docs/guides/" target="_blank" rel="noopener"><span aria-hidden="true">▤</span> Alignment guides (PDF)</a><a id="btnTem" class="spill" target="_blank" rel="noopener"><span aria-hidden="true">◎</span> Sister exhibit: TEM-view</a></div>
 </header>
 
 <nav class="modes" aria-label="Operating mode"></nav>
 <div id="tourCap" class="tourcap" hidden></div>
+<div id="newsModal" class="modal" hidden><div class="card"><button class="close" aria-label="Close">×</button><p class="eyebrow">News</p><h2>Follow <em>SEM-view &amp; TEM-view</em></h2><div id="newsBody"></div></div></div>
 <aside id="comp" class="card comp" hidden><button class="close" aria-label="Close">×</button><button class="speak" id="compSpeak" title="Listen" aria-label="Listen to this component"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w1" d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path class="w2" d="M18.3 6.5a8 8 0 0 1 0 11"/></svg></button><div class="compBody"></div></aside>
 
 <section class="card explain">
+  <button class="fold" data-fold="L" title="Hide this panel ([)" aria-label="Hide the explanation panel">‹</button>
   <p class="eyebrow">What you are looking at<button class="speak" id="infoSpeak" title="Listen" aria-label="Listen to this mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w1" d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path class="w2" d="M18.3 6.5a8 8 0 0 1 0 11"/></svg></button></p>
   <h2 id="infoTitle"></h2>
   <div id="infoBody" class="body"></div>
@@ -82,6 +85,8 @@
   </div>
 </section>
 
+<button id="tabL" class="foldtab left" data-fold="L" title="Show the explanation ([)" aria-label="Show the explanation panel">Info ›</button>
+<button id="tabR" class="foldtab right" data-fold="R" title="Show the controls (])" aria-label="Show the controls panel">‹ Controls</button>
 <aside class="card controls">
   <div class="chead"><p class="eyebrow">Controls</p><div class="icons">
     <button id="btnAI" title="AI mode: type or say commands, ask the agent (/)" aria-label="AI mode" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 5.2A2.6 2.6 0 0 0 6.6 6.6a2.7 2.7 0 0 0-2 3.6 2.8 2.8 0 0 0 .4 4.6 2.7 2.7 0 0 0 3 3.3 2.6 2.6 0 0 0 3.2 1.1V5.2Z"/><path d="M12.8 5.2a2.6 2.6 0 0 1 4.6 1.4 2.7 2.7 0 0 1 2 3.6 2.8 2.8 0 0 1-.4 4.6 2.7 2.7 0 0 1-3 3.3 2.6 2.6 0 0 1-3.2 1.1V5.2Z"/><path d="M8.2 10.5c.9 0 1.6.6 1.6 1.4M15.8 10.5c-.9 0-1.6.6-1.6 1.4M8.6 15c.7-.4 1.6-.3 2 .3M15.4 15c-.7-.4-1.6-.3-2 .3"/></svg></button>
@@ -90,7 +95,9 @@
     <button id="btnTrain" class="train" title="Training mode (T)" aria-label="Training mode: alignment tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg><span>Training</span></button>
     <button id="btnLabels" title="Labels (L)" aria-label="Toggle labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
     <button id="btnPanel" title="Control panel and Console (V)" aria-label="Control panel and game controllers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="6.5" width="19" height="11" rx="3"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="10.5" r="1"/><circle cx="18" cy="13" r="1"/></svg></button>
+    <button id="btnNarrate" title="Auto-narrate (N)" aria-label="Narrate automatically" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="7" rx="1.5"/><rect x="17" y="13" width="4" height="7" rx="1.5"/></svg></button>
     <button id="btnFull" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="fold" data-fold="R" title="Hide the controls (])" aria-label="Hide the controls panel">›</button>
     <button id="btnHelp" title="About" aria-label="About this exhibit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.6"/><circle cx="12" cy="16.8" r=".6" fill="currentColor"/></svg></button>
   </div></div>
   <div class="clarity">
@@ -106,18 +113,19 @@
     <p class="eyebrow">About this exhibit</p>
     <h2>How to <em>drive it</em></h2>
     <ul>
-      <li><b>Drag</b> the 3D instrument to orbit, scroll to zoom. <b>Click a label</b> for its instrument-physics card. Keys <kbd>1</kbd>–<kbd>7</kbd> switch modes, <kbd>Space</kbd> blanks the beam, <kbd>C</kbd> toggles clarity, <kbd>L</kbd> labels, <kbd>R</kbd> resets the view, <kbd>X</kbd> enlarges the results.</li>
+      <li><b>Drag</b> the 3D instrument to orbit, scroll to zoom. <b>Click a label</b> for its instrument-physics card. Keys <kbd>1</kbd>–<kbd>8</kbd> switch modes, <kbd>Space</kbd> blanks the beam, <kbd>C</kbd> toggles clarity, <kbd>L</kbd> labels, <kbd>E</kbd> electrons and signals, <kbd>R</kbd> resets the view, <kbd>X</kbd> enlarges the results, <kbd>I</kbd> acquires, <kbd>N</kbd> turns auto-narration on or off, <kbd>[</kbd> and <kbd>]</kbd> hide or show the explanation and the controls (or the ‹ › buttons; a tab at the screen edge brings them back).</li>
       <li><b>Drag the image</b> to move the stage and scroll it to change magnification. Focus, stigmate (X and Y) and center the aperture with the wobbler, as on a real SEM; or press Auto focus.</li>
       <li><b>AI mode</b> (brain button, or <kbd>/</kbd>): type commands such as "switch to BSE", "20 kV", "focus plus 0.5", "calibrate the magnification" or "reconstruct the relief". Near misses are corrected and confirmed. <b>Voice:</b> hold <kbd>M</kbd> or the microphone and speak the same commands (the browser's speech recognition; in Chrome and Edge on Google's or Microsoft's servers). With an AI agent connected (Controls → Voice and agent), questions get spoken answers.</li>
       <li><b>Python</b> (terminal button, or <kbd>P</kbd>): script the microscope with NumPy in the browser; the same script runs on a desktop, headless or driving this exhibit.</li>
       <li><b>Training</b> (button, or <kbd>T</kbd>): focus and stigmate, center the aperture, image an insulator without charging, set up an EBSD map. Each hides the answer; rate your result, then see the truth. With your consent the session is recorded (anonymous) and may be shared with the research dataset.</li>
       <li><b>Control panel</b> (<kbd>V</kbd>): an on-screen hand panel for the keyboard and mouse (Q/W focus, A/S magnification, Z/X probe current, H/L and K/J multifunction, Tab for stigmator / beam shift / aperture / tilt, O/P context, B wobbler, G auto focus, arrows for the stage), or plug in the TEM-view Console or any game controller.</li>
       <li><b>Digital twin</b> (bottom of the controls): an instrument profile (gun, lenses, scan, EDS detector), calibrated from data: magnification and scan distortion on the cross grating, gun brightness from the resolution, EDS resolution and energy scale. Practise on a mystery instrument; save sessions; export the data as NumPy <code>.npz</code>.</li>
+      <li><b>Cathodoluminescence (CL, key <kbd>7</kbd>):</b> the light the beam makes in GaN quantum wells, alumina or silica. Panchromatic or one wavelength (click the spectrum); dislocations show as dark spots. Change the voltage to reach the buried wells.</li>
       <li><b>EBSD/TKD:</b> maps are indexed point by point; hover a pixel to see its Kikuchi pattern, detected bands and orientation. <b>EDS:</b> click a peak to map it. <b>BSE:</b> click the quadrants to add, subtract or switch off each segment.</li>
     </ul>
     <p class="eyebrow">What is computed, and how</p>
     <p><b>Images</b> are formed pixel by pixel from multiscale specimen models (height, material, crystal orientation). SE yield follows the universal δ(E) curve and the secant law, with an edge effect scaled by the electron range and SE2 generated by backscattered electrons. BSE yield follows Reuter/Arnal η(Z, tilt), with channelling contrast from the local crystal orientation; each of the four quadrants records on its own. The ETD includes shadowing and grid bias. The probe diameter is the quadrature sum of source image, Cₛ, Cc, diffraction and an off-axis aperture, from the instrument profile; astigmatism makes the probe elliptical with two line foci; depth of field blurs out-of-focus heights. Charging appears for uncoated insulators above E2.</p>
-    <p><b>EBSD/TKD</b> patterns are Kikuchi bands in gnomonic projection (width 2θ<sub>B</sub>, strength from structure factors), mixed over the interaction footprint. They’re indexed with a real Hough transform and interplanar-angle voting, and compared with the true orientation. <b>EDS</b> uses Anderson–Hasler X-ray ranges, overvoltage, a simplified absorption correction, Kramers bremsstrahlung and a Fano-limited detector. <b>Interaction volume</b> is a single-scattering Monte Carlo (screened Rutherford, Joy–Luo stopping power).</p>
+    <p><b>EBSD/TKD</b> patterns are Kikuchi bands in gnomonic projection (width 2θ<sub>B</sub>, strength from structure factors), mixed over the interaction footprint. They’re indexed with a real Hough transform and interplanar-angle voting, and compared with the true orientation. <b>EDS</b> uses Anderson–Hasler X-ray ranges, overvoltage, a simplified absorption correction, Kramers bremsstrahlung and a Fano-limited detector. <b>Interaction volume</b> is a single-scattering Monte Carlo (screened Rutherford, Joy–Luo stopping power). <b>CL</b> makes electron–hole pairs (one per ~3 E<sub>g</sub>) across the generation volume, lets them diffuse to dislocations (dark) or into buried quantum wells, and emits each material’s bands, recorded through a parabolic mirror by a photomultiplier or a spectrometer.</p>
     <p class="muted">Simplifications: pattern intensities are kinematic, matrix corrections are schematic, and the specimens are procedural. Trends, length scales and the metrology are right; absolute intensities are illustrative. The sister exhibit for transmission microscopy is <a id="temLink" target="_blank" rel="noopener">Seeing with Electrons (TEM-view)</a>.</p>
   </div>
 </div>
@@ -129,6 +137,6 @@
 <input id="fileReplay" type="file" accept=".json,application/json" hidden>
 <input id="fileSession" type="file" accept=".json,application/json" hidden>
 
-<script type="module" src="js/main.js?v=202610231804"></script>
+<script type="module" src="js/main.js?v=202610231827"></script>
 </body>
 </html>

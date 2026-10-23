@@ -47,7 +47,7 @@ export function blurAniso(arr, w, h, sxx, syy, sxy) {
 export class Sim {
   constructor(S) {
     this.S = S;
-    this.stale = { img: 1, map: 1, eds: 1, mc: 1 };
+    this.stale = { img: 1, map: 1, eds: 1, mc: 1, cl: 1 };
     this.version = 0;
     this.raster = 0; this.frame = 0;
     this.astig = [0.7, -0.45]; // the column's own residual astigmatism (µm, X and Y) the stigmator must cancel
@@ -64,8 +64,8 @@ export class Sim {
   get spec() { return SP[this.S.spec]; }
   get probe() { return P.probe(this.S); }
   invalidate(key) {
-    const only = { etdBias: ['img'], bseMode: ['img'], seg: ['img'], mapView: [], edsSel: [], dwell: ['img'], hover: [] };
-    for (const k of only[key] ?? ['img', 'map', 'eds', 'mc']) this.stale[k] = 1;
+    const only = { etdBias: ['img'], bseMode: ['img'], seg: ['img'], mapView: [], edsSel: [], dwell: ['img', 'cl'], hover: [], clLam: ['clw'], clBand: ['clw'], clMode: ['clw'] };
+    for (const k of only[key] ?? ['img', 'map', 'eds', 'mc', 'cl']) this.stale[k] = 1;
     this.version++;
   }
   // sample → microscope rotation (stage tilted about x toward the EBSD detector)
@@ -463,6 +463,84 @@ export class Sim {
     for (const s of e.syms) { const m = e.maps[s], acc = a.maps[s]; for (let i = 0; i < m.length; i++) acc[i] += P.poisson(m[i] * k); }
   }
 
+
+  // ------------------------------------------------------------------ cathodoluminescence
+  // The beam makes electron–hole pairs throughout the interaction volume (one per ~3 Eg of deposited energy);
+  // they diffuse ~0.1 µm and recombine, radiatively (light at the material's bands) or not (at dislocations,
+  // surfaces). Buried quantum wells only light up when the generation volume reaches their depth.
+  computeCL() {
+    const S = this.S, n = 128, fov = this.fovT(), px = fov / n, E0 = S.kV, spec = this.spec;
+    const comps = new Map(); // band id → { band, A: per-pixel amplitude, E: per-pixel centre (eV) }
+    const comp = (key, band) => { if (!comps.has(key)) comps.set(key, { id: band.id, w: band.w, A: new Float32Array(n * n), E: new Float32Array(n * n).fill(band.E) }); return comps.get(key); };
+    let gen = 0, Rsum = 0, cnt = 0;
+    const L = spec.diffusion ?? 0.08, Lc = spec.capture ?? L, zq = spec.qwDepth ?? 0;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const k = j * n + i, x = S.cx + (i + 0.5 - n / 2) * px, y = S.cy - (j + 0.5 - n / 2) * px, s = spec.sample(x, y, px), m = P.MAT[s.mat];
+      if (!m.rho || !m.cl) continue;
+      const R = P.rangeKO(m, E0); Rsum += R; cnt++;
+      // pairs per incident electron: deposited energy (backscattering takes ~η·0.6 of it away) over the pair energy
+      const Eg = m.cl.Eg ?? Math.max(...m.cl.bands.map((b) => b.E)), pairs = (E0 * 1000 * (1 - 0.6 * P.eta(m.Z))) / P.pairEnergy(Eg);
+      gen += pairs;
+      // dislocations are non-radiative sinks within a diffusion length; the surface kills carriers made in the top ~15 nm
+      const dark = s.dis !== undefined ? 1 - 0.85 * Math.exp(-(s.dis * s.dis) / (2 * L * L)) : 1;
+      const z0 = 0.3 * R, sz = 0.35 * R + 1e-6, surf = 1 - Math.exp(-z0 / 0.015);
+      // share of carriers made close enough to a buried quantum well to be captured by it
+      const fqw = zq ? 0.5 * erfc((zq - Lc - z0) / (Math.SQRT2 * sz)) : 0;
+      const base = pairs * m.cl.eff * 1e-3;
+      m.cl.bands.forEach((b, bi) => { const c = comp(`${s.mat}:${bi}`, b); c.A[k] += base * b.s * dark * surf * (1 - 0.9 * fqw); });
+      if (zq && s.xIn !== undefined) {
+        // InGaN wells: brighter (carriers are captured and localized), less sensitive to dislocations
+        const c = comp('qw', { id: 'InGaN quantum wells', E: 2.75, w: 0.12 });
+        c.A[k] += base * 3.2 * fqw * (1 - 0.5 * (1 - dark)); c.E[k] = P.qwEmission(s.xIn);
+      }
+    }
+    // lateral spread of the generation volume (~0.3 R across) blurs the maps
+    const Rm = cnt ? Rsum / cnt : 0.1, sg = (0.15 * Rm) / px;
+    const list = [...comps.values()].map((c) => ({ ...c, A: blurred(c.A, n, n, sg) }));
+    // spectrum of the whole field: each band is Gaussian in energy, plotted against wavelength (2 nm bins)
+    const l0 = 300, l1 = 800, nb = 250, dl = (l1 - l0) / nb, specArr = new Float32Array(nb);
+    for (const c of list) {
+      const hist = new Map();
+      for (let k = 0; k < n * n; k++) if (c.A[k] > 0) { const e = Math.round(c.E[k] * 200) / 200; hist.set(e, (hist.get(e) ?? 0) + c.A[k]); }
+      const sE = c.w / 2.355;
+      for (const [e, a] of hist) for (let b = 0; b < nb; b++) {
+        const lam = l0 + (b + 0.5) * dl, E = P.HC / lam, dEdl = P.HC / (lam * lam);
+        specArr[b] += (a * Math.exp(-0.5 * ((E - e) / sE) ** 2) * dEdl * dl) / (sE * 2.5066) * P.ccdQE(lam);
+      }
+    }
+    this.cl = { n, px, list, spec: specArr, l0, l1, nb, dl, gen: cnt ? gen / cnt : 0, R: Rm, sg: sg * px };
+    this.clAcc = { t: 0, spec: new Float32Array(nb), frames: 0 };
+    this.clWindow();
+  }
+  // the image through the chosen window: panchromatic (all light, weighted by the photomultiplier) or a band
+  clWindow() {
+    const S = this.S, c = this.cl, n = c.n, img = new Float32Array(n * n), rgb = new Float32Array(n * n * 3);
+    const lo = S.clMode === 'pan' ? 300 : S.clLam - S.clBand / 2, hi = S.clMode === 'pan' ? 800 : S.clLam + S.clBand / 2;
+    for (const comp of c.list) {
+      const sE = comp.w / 2.355;
+      for (let k = 0; k < n * n; k++) {
+        const a = comp.A[k];
+        if (!a) continue;
+        const E = comp.E[k], lam = P.HC / E;
+        // fraction of the band inside the window, in energy (the window edges converted to eV)
+        const f = 0.5 * (erfc((P.HC / hi - E) / (Math.SQRT2 * sE)) - erfc((P.HC / lo - E) / (Math.SQRT2 * sE)));
+        const v = a * f * (S.clMode === 'pan' ? P.pmtQE(lam) : P.ccdQE(lam));
+        img[k] += v;
+        const col = P.lamRGB(lam);
+        rgb[k * 3] += v * col[0]; rgb[k * 3 + 1] += v * col[1]; rgb[k * 3 + 2] += v * col[2];
+      }
+    }
+    c.img = img; c.rgb = rgb; c.window = [lo, hi];
+    this.main = { arr: img, w: n, h: n };
+  }
+  accumulateCL(dt) {
+    const c = this.cl, a = this.clAcc, S = this.S;
+    if (!c) return;
+    a.t += dt; a.frames++;
+    const rate = (S.current / 1000) * 2e4 * dt;
+    for (let b = 0; b < c.nb; b++) a.spec[b] += P.poisson(c.spec[b] * rate);
+  }
+
   // ------------------------------------------------------------------ Monte Carlo
   startMC() {
     const S = this.S, s = this.spec.sample(S.cx, S.cy);
@@ -504,11 +582,23 @@ export class Sim {
       if (this.stale.eds) { this.computeEDS(); this.stale.eds = 0; this.version++; }
       if (!S.paused) { this.accumulateEDS(dt * S.speed); this.version++; }
     }
+    if (m === 'cl') {
+      if (this.stale.cl) { this.computeCL(); this.stale.cl = 0; this.stale.clw = 0; this.version++; }
+      if (this.stale.clw) { this.clWindow(); this.stale.clw = 0; this.version++; }
+      if (!S.paused) { this.accumulateCL(dt * S.speed); this.version++; }
+    }
     if (m === 'mc') {
       if (this.stale.mc) { this.startMC(); this.version++; }
       if (this.mc && !S.paused && this.mc.n < S.mcMax) { this.mc.run(Math.ceil(25 * S.speed)); this.version++; }
     }
   }
+}
+
+// complementary error function (Abramowitz–Stegun 7.1.26, |error| < 1.5e-7)
+export function erfc(x) {
+  const z = Math.abs(x), t = 1 / (1 + 0.3275911 * z);
+  const r = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) * Math.exp(-z * z);
+  return x >= 0 ? r : 2 - r;
 }
 
 function triad(a1, a2, b1, b2) {

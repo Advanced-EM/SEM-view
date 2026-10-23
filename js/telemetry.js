@@ -21,7 +21,7 @@ export const TELEMETRY_FORMAT = 'sem-view-telemetry/1';
 
 // settings worth tracking (BSE segments are flattened)
 const KEYS = ['mode', 'spec', 'fov', 'cx', 'cy', 'tilt', 'coated', 'kV', 'current', 'aperture', 'wd', 'focus', 'stigX', 'stigY', 'apX', 'apY', 'dwell',
-  'etdBias', 'clarity', 'mapN', 'expo', 'tkdThick', 'paused', 'wobble'];
+  'etdBias', 'clarity', 'mapN', 'expo', 'tkdThick', 'clMode', 'clLam', 'clBand', 'paused', 'wobble'];
 const round = (v) => (typeof v === 'number' ? Math.round(v * 1e4) / 1e4 : v);
 
 export function flatState(S) {

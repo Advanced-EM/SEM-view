@@ -15,6 +15,13 @@ export const SHARE = {
 // fallback when it is taken.
 export const AGENT = { urls: ['ws://127.0.0.1:8792', 'ws://127.0.0.1:8793'] };
 
+// the top-left buttons: "Buy me a coffee" (hidden while empty) and "Subscribe for news", which posts to the
+// TEM-view collector's mailing list (one list for both exhibits; addresses stay private in its Cloudflare KV)
+export const SUPPORT = {
+  coffee: 'https://buymeacoffee.com/rmsreis',
+  subscribe: 'https://tem-view-collector.tem-view.workers.dev/subscribe',
+};
+
 // the sister exhibit, and the physical Console that drives both (same USB protocol)
 export const LINKS = {
   tem: 'https://advanced-em.github.io/TEM-view/',

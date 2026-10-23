@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-01 SEM Column Alignment · Scanning with Electrons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="art" style="background-image:url(fig/cover.png)"></div>
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-01</span><span>Scanning electron microscopy</span></div>
+    <h1>SEM column<br><em>alignment</em></h1>
+    <p class="sub">Gun, beam conditions, aperture centering, focus and stigmation, then the checks: resolution and magnification.</p>
+  </div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-01</b>, version 1.0, October 2026<br>For new users and for refresher training<br>Figures computed with SEM-view</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · scope -->
+<section class="page">
+  <div class="run"><span>SOP-01 SEM column alignment</span><span>Scope and preparation</span></div>
+  <h2>Scope and preparation</h2>
+  <p class="lede">This procedure aligns a field-emission SEM for high-resolution secondary-electron imaging. Do the steps in order: each assumes the previous ones are correct. Redo steps 3 and 4 whenever you change the accelerating voltage, the aperture or the working distance.</p>
+
+  <table class="t" style="margin-top:10pt">
+    <tr><th></th><th>Step</th><th>Adjustments</th><th>Checked with</th></tr>
+    <tr><td class="n">1</td><td>Gun</td><td>None for a Schottky gun; flash for a cold FEG; filament saturation for tungsten or LaB₆</td><td>Emission current, extractor voltage, gun vacuum</td></tr>
+    <tr><td class="n">2</td><td>Beam conditions</td><td>Voltage, probe current, aperture, working distance</td><td>The task (table on page 3)</td></tr>
+    <tr><td class="n">3</td><td>Aperture centering</td><td>Aperture X and Y (mechanical or electrical)</td><td>Focus wobbler</td></tr>
+    <tr><td class="n">4</td><td>Focus and stigmation</td><td>Focus, stigmator X and Y</td><td>Small round features, through focus</td></tr>
+    <tr><td class="n">5</td><td>Checks</td><td>None, or a recorded calibration</td><td>Tin-on-carbon resolution standard; cross grating</td></tr>
+  </table>
+
+  <div class="cols">
+    <div>
+      <h3>Before you start</h3>
+      <ul class="plain">
+        <li>Gun and chamber vacuum are within the normal operating range.</li>
+        <li>The specimen is grounded (carbon tape or paint) and, if it is an insulator, coated or imaged below E2 (see SOP-02).</li>
+        <li>The stage is at 0° tilt and the specimen at the working distance you will use.</li>
+        <li>The beam is on and an image is visible at low magnification.</li>
+        <li>You know the type of electron source (table at right).</li>
+      </ul>
+      <h3>Terms used</h3>
+      <p><b>Working distance</b> (WD) is the distance from the pole piece to the focused probe. The <b>wobbler</b> swings the objective focus back and forth a few times a second. The <b>stigmator</b> is an octupole that cancels two-fold astigmatism with two components, X and Y.</p>
+    </div>
+    <div>
+      <h3>Electron source</h3>
+      <table class="t">
+        <tr><th>Source</th><th>Emission</th><th>At the start of a session</th></tr>
+        <tr><td>Schottky FEG</td><td>Stable; the tip is always hot (~1800 K)</td><td>Check the emission current and the extractor voltage are at their usual values. Nothing to adjust.</td></tr>
+        <tr><td>Cold FEG</td><td>Decreases as gas adsorbs on the tip</td><td>Flash the tip when the emission has dropped and at the start of a session.</td></tr>
+        <tr><td>Tungsten or LaB₆</td><td>Set by the filament heating</td><td>Saturate the filament; align the gun for maximum current.</td></tr>
+      </table>
+      <div class="note caution"><b>Caution.</b> Never vent the gun or raise the extractor voltage of a field-emission gun beyond the service settings. Gun faults are for the facility staff.</div>
+      <div class="note"><b>Note.</b> Knob and menu names differ between manufacturers and software versions. Where this guide and your facility's procedure or the manufacturer's manual disagree, follow the facility and the manufacturer.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · steps 1 and 2 -->
+<section class="page">
+  <div class="run"><span>SOP-01 SEM column alignment</span><span>Steps 1 and 2 of 5</span></div>
+  <div class="step">Steps 1 and 2</div>
+  <h2>Gun check and beam conditions</h2>
+  <p class="lede">The probe size is a sum of four terms: the demagnified source, spherical and chromatic aberration, and diffraction. Voltage, current, aperture and working distance choose the balance, so set them for the task before aligning.</p>
+  <div class="cols">
+    <div>
+      <h3>Step 1 · Gun</h3>
+      <ol class="proc">
+        <li>Read the emission current, extractor voltage and gun vacuum. Compare them with the logbook or the last session.</li>
+        <li>Cold FEG only: if the emission has fallen, flash the tip and wait until the emission is stable.</li>
+        <li>If any value is unusual, stop and call the facility staff.</li>
+      </ol>
+      <h3>Step 2 · Beam conditions</h3>
+      <ol class="proc">
+        <li>Choose the voltage. Lower voltage gives more surface detail and less charging; higher voltage gives a smaller probe and more signal.</li>
+        <li>Choose the probe current. Small currents make small probes; analysis (EDS, EBSD, CL) needs nanoamps.</li>
+        <li>Choose the aperture, if it is not set by the current.</li>
+        <li>Set the working distance: short for resolution and the in-lens detector, longer for depth of field and for the analytical detectors.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Typical conditions</h3>
+      <table class="t">
+        <tr><th>Task</th><th>Voltage</th><th>Current</th><th>WD</th></tr>
+        <tr><td>High-resolution SE (in-lens)</td><td>1–5 kV</td><td>10–100 pA</td><td>2–4 mm</td></tr>
+        <tr><td>General SE (ETD)</td><td>5–15 kV</td><td>50–500 pA</td><td>5–10 mm</td></tr>
+        <tr><td>BSE composition</td><td>10–20 kV</td><td>0.2–2 nA</td><td>5–10 mm</td></tr>
+        <tr><td>Uncoated insulator</td><td>below E2 (~1–3 kV)</td><td>10–100 pA</td><td>3–6 mm</td></tr>
+        <tr><td>EDS, EBSD, CL</td><td>see SOP-02</td><td>1–20 nA</td><td>analytical WD</td></tr>
+      </table>
+      <div class="note"><b>Note.</b> Measure the probe current with a Faraday cup before quantitative work: the current display is a calibration, not a measurement.</div>
+      <div class="note"><b>In SEM-view.</b> The instrument readout shows the probe-size budget (source, Cₛ, Cc, diffraction) for the current settings; the In-lens mode plots probe size against convergence angle.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · step 3 aperture -->
+<section class="page">
+  <div class="run"><span>SOP-01 SEM column alignment</span><span>Step 3 of 5</span></div>
+  <div class="step">Step 3</div>
+  <h2>Aperture centering with the wobbler</h2>
+  <p class="lede">If the beam-limiting aperture is off the optic axis, the beam passes through the objective off center. Changing the focus then also tilts the beam, so the image moves sideways as well as blurring, and the probe picks up extra blur.</p>
+  <div class="side">
+    <div>
+      <ol class="proc">
+        <li>Find a feature with clear edges at medium magnification (about ×5,000–20,000) and focus on it.</li>
+        <li>Turn on the <b>focus wobbler</b>. The image pulses in and out of focus.</li>
+        <li>If the image also <b>sways sideways</b>, adjust <b>aperture X</b> until the sideways movement in that direction stops.</li>
+        <li>Adjust <b>aperture Y</b> in the same way.</li>
+        <li>Increase the magnification and repeat with smaller steps.</li>
+        <li>Turn the wobbler off and refocus.</li>
+      </ol>
+      <p class="result"><b>Result.</b> With the wobbler on, the image only pulses in and out of focus about a fixed point.</p>
+      <div class="note"><b>Note.</b> Some instruments center the aperture electrically (with alignment coils) and some mechanically (with the aperture drive); the wobbler test is the same.</div>
+      <div class="note caution"><b>If the image keeps moving.</b> Check it is not stage drift (turn the wobbler off and watch), and that the wobbler amplitude is not so large that the image is lost. Reduce the amplitude at high magnification.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/ap_off.png" alt=""><figcaption><b>Fig. 1a.</b> Aperture off axis. The two extremes of the wobble, averaged: the image of the cross grating is doubled by the sideways movement.</figcaption></figure>
+      <figure class="fig"><img src="fig/ap_ok.png" alt=""><figcaption><b>Fig. 1b.</b> Aperture centered. The two extremes overlap; only the focus changes.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · step 4 focus and stigmation -->
+<section class="page">
+  <div class="run"><span>SOP-01 SEM column alignment</span><span>Step 4 of 5</span></div>
+  <div class="step">Step 4</div>
+  <h2>Focus and stigmation</h2>
+  <p class="lede">With astigmatism the lens focuses one direction more strongly than the other, so the probe has two line foci. Just below focus small features streak one way; just above focus they streak at 90° to it. In between they are blurred but not streaked.</p>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Choose small, round features (particles, pores) at a magnification where they are a few millimetres across on the screen.</li>
+        <li>Focus as well as you can.</li>
+        <li>Go a little through focus both ways. If the features streak in perpendicular directions either side of focus, there is astigmatism.</li>
+        <li>Return to the best focus and adjust <b>stigmator X</b> for the sharpest image.</li>
+        <li>Adjust <b>stigmator Y</b> for the sharpest image.</li>
+        <li>Refocus. Repeat steps 3–5 with smaller steps, at a higher magnification if needed, until going through focus no longer streaks the features.</li>
+      </ol>
+      <p class="result"><b>Result.</b> Going through focus blurs the features evenly in all directions, and in focus they are round and sharp.</p>
+      <div class="note"><b>Note.</b> Stigmate on a slow scan or a reduced area, so the image refreshes quickly but is not too noisy. Auto focus and auto stigmation do the same search with an image-sharpness metric; check their result by eye.</div>
+    </div>
+    <div class="figs2">
+      <figure class="fig"><img src="fig/stig_under.png" alt=""><figcaption><b>Fig. 2a.</b> Astigmatic, below focus: streaks one way.</figcaption></figure>
+      <figure class="fig"><img src="fig/stig_over.png" alt=""><figcaption><b>Fig. 2b.</b> Astigmatic, above focus: streaks turned by 90°.</figcaption></figure>
+      <figure class="fig"><img src="fig/stig_infocus.png" alt=""><figcaption><b>Fig. 2c.</b> Astigmatic, best focus: blurred, not streaked.</figcaption></figure>
+      <figure class="fig"><img src="fig/stig_ok.png" alt=""><figcaption><b>Fig. 2d.</b> Stigmator corrected, in focus.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · step 5 checks -->
+<section class="page">
+  <div class="run"><span>SOP-01 SEM column alignment</span><span>Step 5 of 5</span></div>
+  <div class="step">Step 5</div>
+  <h2>Checks: resolution and magnification</h2>
+  <p class="lede">Two standards tell you whether the alignment and the instrument are working as they should: a resolution standard shows the probe size, and a certified grating checks the magnification and the scan.</p>
+  <div class="cols">
+    <div>
+      <h3>Resolution</h3>
+      <ol class="proc">
+        <li>Image the tin-on-carbon (or gold-on-carbon) standard at high magnification, with the pixel no larger than a third of the expected probe size.</li>
+        <li>Measure the 25–75 % edge width on several particles, or use the instrument's resolution tool.</li>
+        <li>Compare with the specification for the voltage, current and working distance in use.</li>
+      </ol>
+      <figure class="fig"><img src="fig/res_sn.png" alt=""><figcaption><b>Fig. 3a.</b> Tin on carbon, 400 nm field at 15 kV and 50 pA.</figcaption></figure>
+    </div>
+    <div>
+      <h3>Magnification and scan</h3>
+      <ol class="proc">
+        <li>Image the certified cross grating so that at least four periods fill the field, in both scan directions.</li>
+        <li>Measure the period along x and along y, and the angle between the two families of lines.</li>
+        <li>The ratio of the certified to the measured period is the magnification calibration; the x/y ratio is the scan aspect; the departure from 90° is the scan shear.</li>
+        <li>Record the values and the date; recalibrate after service or when the measured error exceeds the facility's tolerance (often 1–2 %).</li>
+      </ol>
+      <figure class="fig"><img src="fig/grating.png" alt=""><figcaption><b>Fig. 3b.</b> 463 nm cross grating (2160 lines/mm), 4 µm field.</figcaption></figure>
+      <div class="note"><b>In SEM-view.</b> Say or type “measure the resolution” or “calibrate the magnification”, or use Calibrate from data in the Digital twin section: the fits recover the resolution, magnification, scan aspect and shear and compare them with the simulator's truth.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>6</span></div>
+</section>
+
+<!-- 7 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Practice on SEM-view</h2>
+  <p class="lede" style="color:#c3d3e1">The figures in this procedure were computed with SEM-view, a physics-based SEM simulator that runs in a web browser. Its training tasks “Focus and stigmate” and “Center the aperture” hide a random misalignment and report how close you came once you are done.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">Open the training task</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Scan the code with a phone, or open SEM-view and select Training.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>Simulated column</h3><p>Select any part of the 3D instrument, from the Schottky gun to the detectors, to see what it does and how it is measured.</p></div>
+    <div><h3>Scored practice</h3><p>Rate your own alignment, then compare it with the hidden misalignment.</p></div>
+    <div><h3>Research data</h3><p>With your consent, anonymous practice sessions are used to study how people align microscopes.</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-01 SEM column alignment, version 1.0, October 2026<br>For training. Follow your facility's procedures and the<br>manufacturer's documentation.<br>github.com/Advanced-EM/SEM-view</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/SEM-view/?train=sem-focus-stig';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>

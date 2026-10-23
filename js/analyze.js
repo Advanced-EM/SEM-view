@@ -8,6 +8,7 @@
 //   fit_focus          not in emskills                 focus and astigmatism from a through-focus pair
 //   index_ebsd         not in emskills                 indexing rate and accuracy of an EBSD/TKD map
 //   mc_summary         not in emskills                 backscatter coefficient and range from the Monte Carlo
+//   fit_cl             not in emskills                 CL bands (indium content of InGaN wells) and dislocation density
 //
 // Each analysis reads the recorded data (export.js collectData) with its calibration, runs the fit from
 // calibrate.js, and also returns the simulator's true values, so a measurement can be checked against the truth.
@@ -160,6 +161,45 @@ export const ANALYSES = {
         truth: { median_error_deg: r(med(errs), 3), misindexed: wrong, correct_fraction: r((errs.length - wrong) / M.done, 3) } };
     },
   },
+  fit_cl: {
+    skill: null, registry: false, label: 'CL bands and defects', modes: ['cl'],
+    run(sim, S) {
+      const c = sim.cl, a = sim.clAcc, sp = a?.frames > 5 ? a.spec : c.spec;
+      // peaks: local maxima above 4 % of the strongest, centre and width from a parabola through ln(I) in energy
+      const lam = (b) => c.l0 + (b + 0.5) * c.dl, top = Math.max(...sp), bands = [];
+      for (let b = 2; b < c.nb - 2; b++) {
+        if (!(sp[b] > 0.04 * top && sp[b] >= sp[b - 1] && sp[b] > sp[b + 1] && sp[b] >= sp[b - 2] && sp[b] >= sp[b + 2])) continue;
+        const [y0, y1, y2] = [sp[b - 1], sp[b], sp[b + 1]].map((v) => Math.log(Math.max(v, 1e-12))), d = y0 - 2 * y1 + y2;
+        const lp = lam(b) + (d < 0 ? (0.5 * (y0 - y2) / d) * c.dl : 0), E = P.HC / lp;
+        let hw = 0; for (let k = b; k < c.nb && sp[k] > sp[b] / 2; k++) hw++; for (let k = b; k >= 0 && sp[k] > sp[b] / 2; k--) hw++;
+        bands.push({ wavelength_nm: r(lp, 1), energy_eV: r(E, 3), fwhm_nm: r(hw * c.dl, 0), intensity: r(sp[b] / top, 3) });
+      }
+      const name = (E) => (E > 3.3 && E < 3.5 ? 'GaN band edge' : E > 2.55 && E <= 3.0 && S.spec === 'gan' ? 'InGaN quantum wells' : E > 1.95 && E < 2.45 && S.spec === 'gan' ? 'GaN yellow band (defects)' : Math.abs(E - 1.786) < 0.03 ? 'Cr³⁺ R-line (ruby)' : E > 2.5 && E < 3.3 ? 'F centre / oxygen-vacancy band' : E > 1.7 && E < 2.1 ? 'non-bridging oxygen band' : 'unassigned');
+      for (const b of bands) b.assignment = name(b.energy_eV);
+      // indium content of the wells from their emission (inverting the bowed band gap)
+      const qw = bands.find((b) => b.assignment === 'InGaN quantum wells');
+      let xIn = null;
+      if (qw) { let lo = 0, hi = 0.5; for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (P.qwEmission(mid) > qw.energy_eV) lo = mid; else hi = mid; } xIn = r((lo + hi) / 2, 3); }
+      // dislocations: dark spots in the band-edge (or panchromatic) image, local minima well below their surroundings
+      let disl = null;
+      if (S.spec === 'gan') {
+        const n = c.n, img = c.img, R = Math.max(2, Math.round((sim.spec.diffusion * 1.5) / c.px));
+        let found = 0;
+        for (let j = R; j < n - R; j++) for (let i = R; i < n - R; i++) {
+          const v = img[j * n + i];
+          let isMin = true, ring = 0, cnt = 0;
+          for (let dj = -R; dj <= R && isMin; dj++) for (let di = -R; di <= R; di++) { const w = img[(j + dj) * n + i + di]; if (w < v) { isMin = false; break; } if (Math.abs(dj) === R || Math.abs(di) === R) { ring += w; cnt++; } }
+          if (isMin && v < 0.8 * (ring / cnt)) found++;
+        }
+        const area = ((n - 2 * R) * c.px) ** 2, truth = sim.spec.dislocations(S.cx, S.cy, sim.fovT()) / (sim.fovT() ** 2);
+        disl = { counted: found, density_cm2: +(found / area * 1e8).toPrecision(3), truth_cm2: +(truth * 1e8).toPrecision(3), resolvable: c.sg < 0.5 * sim.spec.diffusion * 4 };
+      }
+      const xTrue = S.spec === 'gan' ? r(0.15, 3) : null;
+      const summ = `${bands.map((b) => `${b.assignment} ${b.wavelength_nm} nm`).join(', ') || 'no luminescence here'}${xIn != null ? `; wells x(In) ≈ ${xIn} (true mean ${xTrue})` : ''}${disl ? `; ${disl.counted} dark spots → ${disl.density_cm2.toExponential(1)} cm⁻² (true ${disl.truth_cm2.toExponential(1)} cm⁻²)${S.clMode === 'pan' || S.clLam < 380 ? '' : ' (count on the panchromatic or band-edge image for the best contrast)'}` : ''}`;
+      return { summary: summ, result: { bands, indium_fraction: xIn, dislocations: disl && { counted: disl.counted, density_cm2: disl.density_cm2 }, generation_spread_nm: r(c.sg * 1000, 0) },
+        truth: { indium_fraction_mean: xTrue, dislocation_density_cm2: disl?.truth_cm2 ?? null, qw_depth_nm: sim.spec.qwDepth ? sim.spec.qwDepth * 1000 : null } };
+    },
+  },
   mc_summary: {
     skill: null, registry: false, label: 'Monte Carlo', modes: ['mc'],
     run(sim, S) {
@@ -173,14 +213,14 @@ export const ANALYSES = {
 };
 
 // the analysis that fits the current mode
-export const defaultAnalysis = (mode, spec) => (IMG.includes(mode) && mode !== 'bse' ? (spec === 'grid' ? 'calibrate_scale' : 'fit_resolution') : { bse: 'reconstruct_relief', eds: 'fit_eds', ebsd: 'index_ebsd', tkd: 'index_ebsd', mc: 'mc_summary' }[mode] ?? null);
+export const defaultAnalysis = (mode, spec) => (IMG.includes(mode) && mode !== 'bse' ? (spec === 'grid' ? 'calibrate_scale' : 'fit_resolution') : { bse: 'reconstruct_relief', eds: 'fit_eds', ebsd: 'index_ebsd', tkd: 'index_ebsd', cl: 'fit_cl', mc: 'mc_summary' }[mode] ?? null);
 export const ALIASES = { calibrate_magnification: 'calibrate_scale', relief: 'reconstruct_relief', autofocus: 'fit_focus', resolution: 'fit_resolution' };
 
 // big arrays stay out of the JSON result (the IDE and agents get them through acquire)
 export function analyze(sim, S, name, opts) {
   name = ALIASES[name] ?? name ?? defaultAnalysis(S.mode, S.spec);
   const a = ANALYSES[name];
-  if (!a) throw new Error(`nothing to analyze in ${S.mode} mode: try imaging (resolution, focus, scale), BSE (relief), EDS (peaks, phases), EBSD or the Monte Carlo`);
+  if (!a) throw new Error(`nothing to analyze in ${S.mode} mode: try imaging (resolution, focus, scale), BSE (relief), EDS (peaks, phases), EBSD, CL or the Monte Carlo`);
   if (!a.modes.includes(S.mode)) throw new Error(`${a.label} needs ${a.modes.map((m) => m.toUpperCase()).join(' or ')} mode; the microscope is in ${S.mode.toUpperCase()}`);
   const data = collectData(sim, S);
   const emskills = a.registry ? { skill: a.skill, tool: name, in_registry: true } : { skill: null, in_registry: false, related: a.related ?? null };

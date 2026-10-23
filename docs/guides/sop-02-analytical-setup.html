@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SOP-02 Analytical Set-up: EDS, EBSD and CL · Scanning with Electrons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="guide.css?v=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- 1 · cover -->
+<section class="page cover">
+  <div class="art" style="background-image:url(fig/cl_pan.png)"></div>
+  <div class="top">
+    <div class="brandline"><span>Standard operating procedure SOP-02</span><span>Scanning electron microscopy</span></div>
+    <h1>Analytical<br><em>set-up</em></h1>
+    <p class="sub">Charging, beam current, then X-ray spectroscopy (EDS), orientation mapping (EBSD) and cathodoluminescence (CL).</p>
+  </div>
+  <div class="bottom">
+    <div class="doc"><b>SOP-02</b>, version 1.0, October 2026<br>After SOP-01 (column alignment)<br>Figures computed with SEM-view</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<!-- 2 · common steps -->
+<section class="page">
+  <div class="run"><span>SOP-02 Analytical set-up</span><span>Before any analysis</span></div>
+  <h2>Before any analysis</h2>
+  <p class="lede">Analysis needs a stable beam of known current on a specimen that does not charge. Align the column first (SOP-01), at the voltage and working distance you will analyze with.</p>
+  <div class="cols">
+    <div>
+      <h3>Charging</h3>
+      <ol class="proc">
+        <li>Image the area at the analysis voltage. Bright blooms, streaks along the scan, or an image that drifts and distorts mean the surface is charging.</li>
+        <li>For EDS and EBSD, coat the specimen (a few nm of carbon), or use low-vacuum mode if available.</li>
+        <li>For imaging an uncoated insulator, lower the voltage until the charging stops: at the second crossover E2, as many electrons leave as arrive. Its value varies with the material and its surface, so find it by stepping down.</li>
+      </ol>
+      <h3>Probe current</h3>
+      <ol class="proc">
+        <li>Move the Faraday cup under the beam and read the current with the picoammeter.</li>
+        <li>Set the current for the technique (table at right) and record it.</li>
+        <li>For long maps, measure again at the end to check for drift.</li>
+      </ol>
+    </div>
+    <div>
+      <div class="figs2">
+        <figure class="fig"><img src="fig/charge_15.png" alt=""><figcaption><b>Fig. 1a.</b> Uncoated alumina inclusion in nickel at 15 kV: charging (bright bloom, streak).</figcaption></figure>
+        <figure class="fig"><img src="fig/charge_ok.png" alt=""><figcaption><b>Fig. 1b.</b> The same inclusion at 2.2 kV, just below E2: no charging.</figcaption></figure>
+      </div>
+      <table class="t" style="margin-top:8pt">
+        <tr><th>Technique</th><th>Voltage</th><th>Current</th><th>Tilt</th></tr>
+        <tr><td>EDS</td><td>≥ 1.5–2 × the highest edge used</td><td>0.5–5 nA</td><td>0°</td></tr>
+        <tr><td>EBSD</td><td>15–30 kV</td><td>1–20 nA</td><td>70°</td></tr>
+        <tr><td>CL</td><td>2–15 kV (sets the depth)</td><td>1–10 nA</td><td>0°</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>2</span></div>
+</section>
+
+<!-- 3 · EDS -->
+<section class="page">
+  <div class="run"><span>SOP-02 Analytical set-up</span><span>EDS</span></div>
+  <div class="step">EDS</div>
+  <h2>X-ray spectroscopy</h2>
+  <p class="lede">Each element emits X-rays at its own energies. A line is excited efficiently only when the beam energy is 1.5–2 times its critical energy (the overvoltage), and the X-rays come from a volume that grows quickly with voltage, so choose the lowest voltage that excites the lines you need.</p>
+  <div class="side">
+    <div>
+      <ol class="proc">
+        <li>Set the analytical working distance (the one at which the detector looks at the beam spot; often 8–10 mm) and 0° tilt.</li>
+        <li>Choose the voltage from the highest-energy line you need: for example 15 kV for Cu Kα (Ec 9.0 keV), 5–10 kV for light elements and a finer map.</li>
+        <li>Set the current so the dead time is about 20–40 %.</li>
+        <li>Check the energy calibration on a known line (Cu or Co standard) if the spectrum looks shifted.</li>
+        <li>Collect a spectrum from the area, identify the peaks, then map the elements of interest.</li>
+      </ol>
+      <p class="result"><b>Result.</b> A spectrum whose bremsstrahlung ends at the beam energy (the Duane–Hunt limit), with the expected peaks and no unexplained ones.</p>
+      <div class="note"><b>Note.</b> Peaks within ~100 eV overlap at detector resolution (for example W Mα and Si Kα): check with a second line of each element.</div>
+      <div class="note"><b>In SEM-view.</b> “Fit the EDS peaks” measures the detector resolution and energy scale; “map the phases” finds the phases from the element maps.</div>
+    </div>
+    <div class="stack">
+      <figure class="fig"><img src="fig/eds_map.png" alt=""><figcaption><b>Fig. 2.</b> Element map of a chip cross-section at 10 kV: Pt cap, Al pad, SiO₂, Cu lines and W vias, Si substrate. Features smaller than the X-ray range blur together.</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>3</span></div>
+</section>
+
+<!-- 4 · EBSD -->
+<section class="page">
+  <div class="run"><span>SOP-02 Analytical set-up</span><span>EBSD</span></div>
+  <div class="step">EBSD</div>
+  <h2>Orientation mapping</h2>
+  <p class="lede">Backscattered electrons diffracted by the lattice planes form Kikuchi bands on a phosphor screen. Tilting the polished specimen to 70° sends them toward the camera; the indexing software turns each pattern into a crystal orientation.</p>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Use a flat, damage-free surface (final polish with colloidal silica or electropolishing).</li>
+        <li>Tilt the stage to <b>70°</b> (or use a pre-tilted holder) and bring the area to the eucentric height and the EBSD working distance.</li>
+        <li>Set 15–30 kV and a few nA. Insert the EBSD camera.</li>
+        <li>Check a pattern: bands should be sharp and well above the background. Adjust exposure and gain; collect a background.</li>
+        <li>Calibrate the pattern centre and detector distance on a known crystal, or check the software's value.</li>
+        <li>Choose the step size (several points per grain) and start the map. Check the indexing rate after the first lines.</li>
+      </ol>
+      <p class="result"><b>Result.</b> A map in which most points index with a low mean angular deviation; unindexed points are at grain boundaries, pores or scratches.</p>
+      <div class="note"><b>Note.</b> At 70° the interaction volume is stretched ~3× along the tilt direction, so grains smaller than ~100 nm give overlapping patterns. Transmission Kikuchi diffraction (TKD) on a thin lamella resolves them.</div>
+    </div>
+    <div>
+      <div class="figs2">
+        <figure class="fig"><img src="fig/ebsd_ipf.png" alt=""><figcaption><b>Fig. 3a.</b> IPF-Z map of polycrystalline nickel, 40 × 40 points; black = not indexed.</figcaption></figure>
+        <figure class="fig"><img src="fig/ebsd_pattern.png" alt=""><figcaption><b>Fig. 3b.</b> One Kikuchi pattern at 20 kV, 70° tilt.</figcaption></figure>
+      </div>
+      <div class="note"><b>In SEM-view.</b> The training task “Set up an EBSD map” starts from imaging conditions; “check the indexing” compares the map with the true orientations.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>4</span></div>
+</section>
+
+<!-- 5 · CL -->
+<section class="page">
+  <div class="run"><span>SOP-02 Analytical set-up</span><span>CL</span></div>
+  <div class="step">CL</div>
+  <h2>Cathodoluminescence</h2>
+  <p class="lede">In semiconductors and insulators the beam makes electron–hole pairs; when they recombine they can emit light at the material's own energies. A parabolic mirror above the specimen collects it for a photomultiplier (panchromatic images) or a spectrometer (spectra and monochromatic maps).</p>
+  <div class="cols">
+    <div>
+      <ol class="proc">
+        <li>Retract the other detectors that sit under the pole piece, then insert the CL mirror. Set the working distance to the mirror's focus (often ~10 mm) and 0° tilt.</li>
+        <li>Optimize the mirror position on a bright area: maximize the panchromatic signal.</li>
+        <li>Choose the voltage for the depth you want: low voltage for the surface, higher to reach buried layers. Use nanoamps, but watch for beam damage (the signal fades with time).</li>
+        <li>Record a spectrum from the area. Identify the bands.</li>
+        <li>For each band of interest, set the monochromator to it and record a map; or record a hyperspectral map (a spectrum per pixel).</li>
+      </ol>
+      <p class="result"><b>Result.</b> Spectra with the expected bands, and maps in which the defects that quench luminescence (dislocations, grain boundaries) show as dark features.</p>
+      <div class="note"><b>Note.</b> The resolution is set by the generation volume and carrier diffusion, not by the probe: dark spots at dislocations are a few hundred nanometres across at 5 kV, and blur away at high voltage.</div>
+    </div>
+    <div>
+      <div class="figs3">
+        <figure class="fig"><img src="fig/cl_pan.png" alt=""><figcaption><b>Fig. 4a.</b> GaN/InGaN LED, 5 kV, panchromatic (true colours).</figcaption></figure>
+        <figure class="fig"><img src="fig/cl_365.png" alt=""><figcaption><b>Fig. 4b.</b> 365 nm, GaN band edge: dislocations dark.</figcaption></figure>
+        <figure class="fig"><img src="fig/cl_450.png" alt=""><figcaption><b>Fig. 4c.</b> 450 nm, InGaN wells: indium fluctuations.</figcaption></figure>
+      </div>
+      <div class="figs2" style="margin-top:6pt">
+        <figure class="fig"><img src="fig/cl_2kv.png" alt=""><figcaption><b>Fig. 4d.</b> 2 kV: only the GaN cap emits (violet, near-UV); the wells 80 nm down are not reached.</figcaption></figure>
+        <figure class="fig"><img src="fig/cl_15kv.png" alt=""><figcaption><b>Fig. 4e.</b> 15 kV: the wells dominate (blue), and the larger generation volume blurs the dislocations.</figcaption></figure>
+      </div>
+      <div class="note"><b>In SEM-view.</b> “Count the dislocations” fits the bands, estimates the indium content of the wells and the dislocation density, and compares them with the truth.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Scanning with Electrons · SEM-view</span><span>5</span></div>
+</section>
+
+<!-- 6 · back cover -->
+<section class="page back">
+  <h2 style="font-size:32pt;margin-bottom:12pt">Practice on SEM-view</h2>
+  <p class="lede" style="color:#c3d3e1">The figures in this procedure were computed with SEM-view, a physics-based SEM simulator that runs in a web browser. Its training tasks “Image an insulator without charging” and “Set up an EBSD map” score your set-up against the hidden truth.</p>
+  <div style="display:flex;gap:22pt;align-items:center;margin:22pt 0 28pt">
+    <div class="qr" id="qr"></div>
+    <div>
+      <p style="margin:0 0 4pt;color:#9fb4c6">Open the training task</p>
+      <p style="font-size:11pt;margin:0 0 10pt"><a id="link" href=""></a></p>
+      <p style="color:#9fb4c6;margin:0">Scan the code with a phone, or open SEM-view and select Training.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div><h3>Every signal</h3><p>SE, BSE, EDS, EBSD, TKD and CL from the same interaction volume, with a live Monte Carlo.</p></div>
+    <div><h3>Scored practice</h3><p>Rate your own set-up, then compare it with the truth.</p></div>
+    <div><h3>Your own data</h3><p>Calibrate the digital twin from your instrument's images and spectra, in the browser.</p></div>
+  </div>
+  <div class="fine">
+    <div>SOP-02 Analytical set-up, version 1.0, October 2026<br>For training. Follow your facility's procedures and the<br>manufacturer's documentation.<br>github.com/Advanced-EM/SEM-view</div>
+    <div class="logo">Scanning with Electrons<small>SEM-view · Advanced-EM</small></div>
+  </div>
+</section>
+
+<script>
+  const url = 'https://advanced-em.github.io/SEM-view/?train=ebsd-setup';
+  const a = document.getElementById('link'); a.href = url; a.textContent = url.replace('https://', '');
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); document.getElementById('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch { /* offline: link only */ }
+</script>
+</body>
+</html>
