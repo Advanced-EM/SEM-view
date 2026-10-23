@@ -19,7 +19,7 @@ const CAL_KEYS = { scale: ['magCal', 'scanAspect', 'scanShear'], gun: ['Br'], ed
 export const hiddenField = (k) => !!mystery && !mystery.revealed && !mystery.cal.has(k) && Object.values(CAL_KEYS).flat().includes(k);
 
 // ------------------------------------------------------------------ file readers
-// TIFF: uncompressed 8/16/32-bit grayscale or RGB, strips; reads the pixel size that FEI/Thermo (tag 34682) and
+// TIFF: uncompressed 8/16/32-bit grayscale or RGB, strips; reads the pixel size that Thermo Fisher Scientific (tag 34682) and
 // Zeiss (tag 34118) SEMs write into their own metadata
 export function readTiff(buf) {
   const dv = new DataView(buf), le = dv.getUint16(0) === 0x4949, u16 = (o) => dv.getUint16(o, le), u32 = (o) => dv.getUint32(o, le);
@@ -43,12 +43,12 @@ export function readTiff(buf) {
   }
   // pixel size in µm, when the instrument wrote it
   let pixUm = null;
-  const fei = typeof tags[34682] === 'string' && /PixelWidth=([\d.eE+-]+)/.exec(tags[34682]);
-  if (fei) pixUm = +fei[1] * 1e6;
+  const tfs = typeof tags[34682] === 'string' && /PixelWidth=([\d.eE+-]+)/.exec(tags[34682]);
+  if (tfs) pixUm = +tfs[1] * 1e6;
   const zeiss = typeof tags[34118] === 'string' && /Image Pixel Size = ([\d.]+) (pm|nm|µm|um)/.exec(tags[34118]);
   if (zeiss) pixUm = +zeiss[1] * { pm: 1e-6, nm: 1e-3, 'µm': 1, um: 1 }[zeiss[2]];
-  // FEI images carry a data bar below the image: keep the square-ish top
-  const Hc = fei && H > W * 0.7 ? Math.min(H, Math.round(W * (H > W ? 1 : H / W))) : H;
+  // Thermo Fisher images carry a data bar below the image: keep the square-ish top
+  const Hc = tfs && H > W * 0.7 ? Math.min(H, Math.round(W * (H > W ? 1 : H / W))) : H;
   return { data: data.slice(0, W * Hc), w: W, h: Hc, pixUm };
 }
 async function readImage(file) {

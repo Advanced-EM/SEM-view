@@ -293,7 +293,7 @@ function action(id) {
 }
 function tourStops() {
   return [
-    { y: 6.6, pos: [2.4, 7.2, 4], title: 'The electron gun', text: `A heated, sharpened tungsten tip coated with zirconia emits electrons that are accelerated to ${S.kV} kV. Unlike a TEM, an SEM rarely goes above 30 kV: it looks at surfaces, not through them.` },
+    { y: 6.6, pos: [2.4, 7.2, 4], title: 'The electron gun', text: `A sharp W(100) tip, welded to a hairpin heated to ~1800 K and coated with zirconia, sits in ultra-high vacuum kept by an ion pump. The extractor pulls electrons over a field-lowered barrier (Schottky emission), the suppressor blocks stray electrons from the shank, and the anode accelerates them to ${S.kV} kV. Unlike a TEM, an SEM rarely goes above 30 kV: it looks at surfaces, not through them.` },
     { y: 5.0, pos: [3, 5.6, 4.6], title: 'Condenser & aperture', text: 'The condenser demagnifies the source and the aperture sets the convergence angle. Together they choose the trade-off between current, probe size and depth of field. The aperture must sit on the optic axis: the wobbler shows when it does not.' },
     { y: 3.2, pos: [2.8, 3.8, 4.4], title: 'Scan coils, in-lens detector, objective', text: 'Scan coils sweep the probe line by line. The conical objective focuses it to a nanometre spot and, in immersion mode, funnels secondary electrons up to the in-lens detector. Its stigmator corrects astigmatism in X and Y.' },
     { y: 1.0, pos: [3.2, 2.2, 4.6], title: 'Specimen & interaction volume', text: 'Beneath the spot the electrons scatter through a pear-shaped volume. Secondaries escape from the top nanometres, backscattered electrons from deeper, X-rays from almost everywhere.' },
