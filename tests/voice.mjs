@@ -6,7 +6,9 @@ const cases = {
   'field of view 500 nm': [{ op: 'set', k: 'fov', v: 0.5 }], 'tilt 70': [{ op: 'set', k: 'tilt', v: 70 }], 'coat the sample': [{ op: 'set', k: 'coated', v: true }],
   'load the grating and switch to bse': [{ op: 'spec', v: 'grid' }, { op: 'mode', v: 'bse' }], 'calibrate the magnification': [{ op: 'analyze', v: 'calibrate_scale' }],
   'reconstruct the relief': [{ op: 'analyze', v: 'reconstruct_relief' }], 'map the phases': [{ op: 'analyze', v: 'phase_map' }], ebsd: [{ op: 'mode', v: 'ebsd' }],
-  topography: [{ op: 'chip', k: 'bseMode', v: 'topoX' }], 'auto focus': [{ op: 'action', v: 'autofocus', said: 'Auto focus and stigmation' }],
+  topography: [{ op: 'chip', k: 'bseMode', v: 'topoX' }],
+  cathodoluminescence: [{ op: 'mode', v: 'cl' }], 'load GaN': [{ op: 'spec', v: 'gan' }], 'wavelength 450': [{ op: 'set', k: 'clLam', v: 450 }],
+  panchromatic: [{ op: 'set', k: 'clMode', v: 'pan' }], 'count the dislocations': [{ op: 'analyze', v: 'fit_cl' }], 'field of view 500 nm': [{ op: 'set', k: 'fov', v: 0.5 }], 'auto focus': [{ op: 'action', v: 'autofocus', said: 'Auto focus and stigmation' }],
 };
 let bad = 0;
 for (const [t, want] of Object.entries(cases)) {

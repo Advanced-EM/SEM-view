@@ -20,3 +20,5 @@ run((S, sim) => { O.specState(S, sim, 'chip'); O.modeState(S, sim, 'eds'); S.kV 
 run((S, sim) => { O.specState(S, sim, 'chip'); O.modeState(S, sim, 'eds'); S.kV = 20; }, 'phase_map');
 run((S, sim) => { O.modeState(S, sim, 'ebsd'); S.mapN = 24; }, 'index_ebsd');
 run((S, sim) => { O.modeState(S, sim, 'mc'); S.spec = 'ni'; }, 'mc_summary');
+run((S, sim) => { O.modeState(S, sim, 'cl'); S.kV = 5; }, 'fit_cl');
+run((S, sim) => { O.specState(S, sim, 'ni'); O.modeState(S, sim, 'cl'); S.kV = 10; }, 'fit_cl');

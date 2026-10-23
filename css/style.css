@@ -68,7 +68,7 @@ body::after { content: ''; position: fixed; inset: 0; pointer-events: none; back
 .icons button:hover { color: var(--text); border-color: var(--line-2); }
 .icons svg { width: 17px; height: 17px; }
 
-.explain { position: fixed; left: 14px; bottom: 14px; width: calc(var(--left) - 24px); max-height: calc(100vh - 300px); overflow-y: auto; padding: 18px 20px 16px; scrollbar-width: thin; }
+.explain { position: fixed; left: 14px; bottom: 14px; width: calc(var(--left) - 24px); max-height: calc(100vh - var(--heroB, 286px) - 26px); overflow-y: auto; padding: 18px 20px 16px; scrollbar-width: thin; }
 .explain h2, .modal h2 { margin: 0 0 10px; font: 400 29px/1.05 var(--serif); }
 .explain .body { color: #c3cad3; font-size: 13.3px; }
 .explain .body b { color: #fff; }
@@ -451,3 +451,41 @@ body.detBig .cmdbar { display: none; }
 .idehelp table { border-collapse: collapse; width: 100%; } .idehelp td { border-bottom: 1px solid var(--line); padding: 5px 6px; vertical-align: top; } .idehelp td:first-child { white-space: nowrap; }
 .idehelp code { font: 12px var(--mono); color: var(--accent); }
 @media (max-width: 640px) { .ide { left: 6px; top: 6px; width: calc(100vw - 12px); height: calc(100vh - 12px); min-width: 0; } }
+
+/* collapsible side panels, top-left support and news (as in TEM-view) */
+.fold { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: 600 15px/1 var(--sans); }
+.fold:hover { color: var(--text); border-color: var(--line-2); }
+.explain > .fold { position: absolute; top: 10px; right: 10px; }
+.foldtab { display: none; position: fixed; top: 50%; z-index: 4; padding: 10px 7px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: 600 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; writing-mode: vertical-rl; backdrop-filter: blur(14px); }
+.foldtab:hover { color: var(--text); border-color: rgba(111, 214, 255, 0.5); }
+.foldtab.left { left: 0; border-left: 0; border-radius: 0 10px 10px 0; transform: translateY(-50%) rotate(180deg); border-radius: 10px 0 0 10px; border-left: 1px solid var(--line); border-right: 0; }
+.foldtab.right { right: 0; border-right: 0; border-radius: 10px 0 0 10px; transform: translateY(-50%); }
+body:not(.stacked).foldL { --left: 24px; }
+body:not(.stacked).foldR { --right: 24px; }
+body:not(.stacked).foldL .explain, body:not(.stacked).foldR .controls { display: none; }
+body:not(.stacked).foldL #tabL, body:not(.stacked).foldR #tabR { display: block; }
+body.stacked .fold { display: none; }
+body:not(.stacked).foldL .detector, body:not(.stacked).foldR .detector { max-width: 1100px; }
+.support { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; pointer-events: auto; }
+.spill { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--sans); color: var(--text); text-decoration: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel); backdrop-filter: blur(10px); cursor: pointer; }
+.spill:hover { border-color: var(--accent); color: var(--accent); }
+.newsform { display: grid; gap: 10px; margin: 12px 0 6px; }
+.newsform label { display: grid; gap: 4px; font: 500 12px var(--sans); color: var(--muted); }
+.newsform label small { font-weight: 400; }
+.newsform input:not([type='radio']) { font: 14px var(--sans); color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 12px; }
+.newsform input:not([type='radio']):focus { outline: none; border-color: var(--accent); }
+.newsform fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.newsform legend { font: 500 12px var(--sans); color: var(--muted); padding: 0; margin-bottom: 6px; width: 100%; }
+.newsform label.role { display: inline-flex; align-items: center; gap: 6px; font: 400 14px var(--sans); color: var(--text); cursor: pointer; }
+.newsform label.role input { accent-color: var(--accent); margin: 0; }
+.newsform button[type='submit'] { justify-self: start; }
+.newsform .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+#newsBody .err { color: #ff9b85; }
+#newsBody .thanks { font-size: 17px; color: var(--accent); margin-top: 6px; }
+.spill.coffee { border-color: rgba(255, 221, 0, 0.45); }
+.spill.coffee:hover { color: #ffdd00; border-color: #ffdd00; }
+body.stacked .support { margin: 8px 16px 0; }
+
+/* TEM direct-alignment scenario: the fluorescent screen over the detector, and the step controls */
+.alignscreen { position: absolute; z-index: 3; pointer-events: none; border-radius: 6px; }
+.scncard .algn { display: grid; gap: 10px; margin: 8px 0 10px; }

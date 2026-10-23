@@ -42,6 +42,14 @@ export function modeInfo(S, sim) {
         stats: [['X-ray range', e ? fmtLen(e.Rx) : '—', e?.mainLine ? `${e.mainLine.el} ${e.mainLine.line} in ${e.dom.name}` : ''], ['Counts', sim.acc ? Math.round(sim.acc.total).toLocaleString() : '—', sim.acc ? `${f1(sim.acc.t)} s` : ''], ['Resolution (Mn Kα)', '128 eV', 'silicon drift detector']],
       };
     }
+    case 'cl': {
+      const c = sim.cl;
+      return {
+        title: 'Seeing <em>light</em>: cathodoluminescence',
+        body: `In semiconductors and insulators the beam lifts electrons across the band gap, making electron–hole pairs (one per ~3 E<sub>g</sub> of deposited energy). When they recombine they can emit <b>light</b> at the material’s own energies: the GaN band edge at 365 nm, the InGaN quantum wells near 450 nm, the ruby line of Cr³⁺ in alumina at 694 nm. A <b>parabolic mirror</b> above the specimen collects it for a photomultiplier (panchromatic) or a spectrometer. <b>Dislocations</b> show as dark spots, because carriers that diffuse into them recombine without light. Raise the voltage and the generation volume reaches the buried wells (depth-resolved CL), but grows wider, so the dark spots blur.`,
+        stats: [['Generation volume', c ? fmtLen(2 * c.sg) : '—', 'across, sets the resolution'], ['Pairs per electron', c ? Math.round(c.gen).toLocaleString() : '—', `at ${S.kV} kV`], ['Window', S.clMode === 'pan' ? 'panchromatic' : `${S.clLam} ± ${S.clBand / 2} nm`, S.clMode === 'pan' ? 'photomultiplier' : 'spectrometer + CCD']],
+      };
+    }
     case 'mc': {
       const mc = sim.mc;
       return {
@@ -90,6 +98,8 @@ export function changeText(key, S, sim) {
     case 'mcMax': return ['Trajectories', `Up to <b>${S.mcMax.toLocaleString()}</b> electrons. The statistics (η, depth profiles) settle as √N.`];
     case 'apX': case 'apY': { if (S.mis?.ap) return ['Aperture alignment', `Aperture knobs at <b>${f1(S.apX)}, ${f1(S.apY)} µm</b>. The true offset is hidden in this task: watch whether the image still sways with the wobbler.`]; const o = P.apertureOffset(S), r = Math.hypot(o[0], o[1]); return ['Aperture alignment', `The aperture is <b>${f1(r)} µm</b> off the optic axis${r > 3 ? ': the beam crosses the objective off center, so the image walks sideways as the focus changes and the probe picks up ' + f1(pr.dm) + ' nm of extra blur. Switch on the wobbler and turn X and Y until the image only pulses in and out of focus' : ', close enough: the image no longer sways with the wobbler'}.`]; }
     case 'wobble': return ['Focus wobbler', S.wobble ? 'The focus now swings back and forth a few times a second. If the image <b>moves sideways</b> as well as blurring, the aperture is off axis: center it with Aperture X and Y until it only pulses.' : 'Wobbler off: the focus is back at its set value.'];
+    case 'clLam': case 'clBand': return ['Monochromator', `Imaging <b>${S.clLam} ± ${S.clBand / 2} nm</b>. ${S.clLam < 380 ? 'The GaN band edge: brightest between dislocations, which are dark.' : S.clLam < 500 && S.spec === 'gan' ? 'The InGaN quantum wells: their emission shifts with the local indium content, so two nearby wavelengths show complementary patterns.' : Math.abs(S.clLam - 694) < 10 ? 'The Cr³⁺ R-line of ruby: traces of chromium in the alumina inclusions.' : 'Click the peaks in the spectrum to image a band.'}`];
+    case 'clMode': return ['CL detector', S.clMode === 'pan' ? 'Panchromatic: all the light goes to a photomultiplier, fast and bright, colour-blind (shown here in its true colours in the educational view).' : 'Monochromatic: the spectrometer passes one band to the detector, so the image shows where that emission comes from.'];
     case 'mode': return null;
   }
   return null;

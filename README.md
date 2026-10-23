@@ -7,9 +7,10 @@ look, the same Console, the same AI and scripting tools, for the SEM.
 - **3D cutaway SEM:** Schottky gun, condenser, beam-limiting aperture, in-lens detector, scan coils, conical immersion objective, and a chamber with a tilting stage. Detectors: Everhart–Thornley (with Faraday cage), 4-quadrant BSE, EDS, an EBSD camera behind the 70°-tilted sample, and an on-axis TKD detector. Click any label for an instrument-physics card.
 - **Imaging (SE · ETD, In-lens, BSE):** images formed pixel by pixel from multiscale specimens, with the SE yield curve, secant law and edge effect, SE2 from backscattered electrons, Reuter/Arnal η(Z, tilt), ETD shadowing and grid bias, BSE composition vs topography and channelling contrast, shot noise, and charging of uncoated insulators above E2.
 - **The column as an instrument:** the probe-size budget (source image, Cₛ, Cc, diffraction) comes from the instrument profile. **Astigmatism** has X and Y components and makes the probe elliptical with two line foci, so the image streaks one way below focus and the other way above it; the **stigmator X/Y** cancel it. An **off-axis aperture** makes the image walk sideways as the focus changes and adds blur; the **focus wobbler** shows it, and the **aperture X/Y** knobs center it.
-- **Specimens:** tin spheres on carbon (resolution), polished polycrystalline nickel with alumina inclusions, a FIB chip cross-section, and a **463 nm cross-grating standard** (gold-shadowed carbon replica) for calibration.
+- **Specimens:** tin spheres on carbon (resolution), polished polycrystalline nickel with alumina inclusions, a FIB chip cross-section, a **463 nm cross-grating standard** (gold-shadowed carbon replica) for calibration, and a **GaN LED wafer** with InGaN quantum wells and threading dislocations.
 - **EBSD & TKD:** Kikuchi bands from structure factors, mixed over the interaction footprint, indexed live with a Hough transform and interplanar-angle voting, compared with the true orientation. IPF, band contrast and MAD maps.
 - **EDS:** X-ray generation range, overvoltage, schematic absorption, the Duane–Hunt limit, a Fano-limited detector with its own resolution and energy scale; element maps blurred by the true X-ray volume.
+- **Cathodoluminescence (CL):** electron–hole pairs (one per ~3 E<sub>g</sub> of deposited energy) across the generation volume diffuse to dislocations, which stay dark, or into quantum wells buried 80 nm deep, and recombine at each material's bands: the GaN band edge (365 nm) and yellow band, InGaN wells near 450 nm that shift with the local indium content, the Cr³⁺ ruby line (694 nm) of the alumina inclusions, and the oxygen-vacancy bands of SiO₂. A parabolic mirror sends the light to a photomultiplier (panchromatic, in true colours) or a spectrometer (click the spectrum to image one band); the export includes a hyperspectral cube. Low voltage sees only the surface; higher voltage reaches the wells but blurs the dislocations. `fit_cl` assigns the bands, finds the indium content and counts the dislocations, against the truth.
 - **Interaction volume:** a live single-scattering Monte Carlo (screened Rutherford + Joy–Luo), with measured η, backscatter energy spectrum, and energy-deposition and φ(ρz) profiles.
 - **Acquire:** the camera button above the detector (or `I`) records what the detectors show into a gallery, each downloadable as PNG or NumPy `.npz` (in BSE mode with all four quadrant images; in EBSD with Bunge Euler maps).
 - **Measure:** analyses of the live data, each checked against the simulator's truth ([`js/analyze.js`](js/analyze.js)):
@@ -24,6 +25,7 @@ look, the same Console, the same AI and scripting tools, for the SEM.
   | "check the astigmatism" | `fit_focus`: best focus and the astigmatism vector from a through-focus pair | not in the registry |
   | "check the indexing" | `index_ebsd`: indexing rate, MAD and true error of the map | not in the registry |
   | "what is the backscatter coefficient" | `mc_summary`: η and penetration depth from the Monte Carlo | not in the registry |
+  | "count the dislocations" | `fit_cl`: CL bands, InGaN indium content, dislocation density | not in the registry |
 
 - **Digital twin:**
   - *Instrument profile*: what belongs to one particular SEM: gun brightness and energy spread, Cₛ and Cc, magnification calibration, scan aspect and shear, EDS resolution, gain and zero offset. Three generic presets (field-emission Schottky, ultra-high-resolution cold FEG, conventional tungsten), plus an editor.
@@ -40,6 +42,8 @@ look, the same Console, the same AI and scripting tools, for the SEM.
   - **Python scripting:** [`tools/semview-py`](tools/semview-py/README.md) scripts the microscope from Python: set the beam, acquire NumPy data with calibrations, run analyses, calibrate the twin, and test automation against hidden misalignments (challenges scored from the true optics). The same script runs in the exhibit's Python IDE (terminal button, or `P`; Pyodide in the browser), headless on a desktop, or driving an open exhibit.
 - **Control panel and Console:** an SEM hand panel (focus, magnification, probe current, a multifunction pair for stigmator X/Y, beam shift, aperture X/Y or tilt, a context knob for scan speed, tilt, current or voltage, stage joystick, wobbler, auto focus) through the Gamepad API. It speaks the same USB protocol as the [TEM-view Console](https://advanced-em.github.io/TEM-view/console/), so one physical Console drives both exhibits; ordinary game controllers work as a stand-in. Without hardware, the **on-screen panel** (`V`) offers the same knobs with the keyboard and mouse: Q/W focus, A/S magnification, Z/X current, H/L and K/J multifunction, Tab for the multifunction mode, O/P context, B wobbler, G auto focus, F fine/coarse, arrows for the stage. It docks over the page or pops out into its own window.
 - **Experiments:** *Charge it up* (find E2), *Nanograins: EBSD vs TKD*, and a fly-through tour.
+- **Guides:** printable procedures in [`docs/guides`](docs/guides/) with figures computed by the simulator (`node tools/figures.mjs`, then `node tools/guides.mjs` prints the PDFs): *SOP-01 SEM column alignment*, *SOP-02 Analytical set-up: EDS, EBSD and CL*, *SOP-03 AI agents, MCP and skills* and *SOP-04 Python scripting*. The interface screenshots in SOP-03 and SOP-04 are retaken with `node tools/shots.mjs` (headless Chrome, with the real semview-mcp server for the agent states). They are linked from the buttons under the title, next to *Buy me a coffee*, *Subscribe for news* (the shared TEM-view / SEM-view mailing list) and the sister exhibit.
+- **Keys:** `1`–`8` modes, `Space` blank the beam, `C` clarity, `L` labels, `E` electrons and signals, `R` reset the view, `X` enlarge the results, `I` acquire, `/` AI mode, `M` hold to talk, `T` training, `P` Python, `V` control panel, `N` auto-narration, `[` and `]` hide or show the side panels, `Esc` close.
 
 ## Run
 
@@ -59,6 +63,8 @@ python3 -m pytest tools/semview-py/tests                                   # Pyt
 node tools/semview-mcp/test.mjs                                            # MCP server (npm install there first)
 node hf/worker/test.mjs                                                    # session collector
 ```
+
+The same checks run on every push and pull request (`.github/workflows/tests.yml`).
 
 ## Code map
 

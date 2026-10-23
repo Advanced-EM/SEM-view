@@ -74,9 +74,13 @@ export const MAT = {
   C: { name: 'Carbon', Z: 6, A: 12.01, rho: 2.0, dmax: 1.0, Emax: 0.3, cond: true, comp: { C: 1 }, color: '#6d7480' },
   Sn: { name: 'Tin', Z: 50, A: 118.7, rho: 7.29, dmax: 1.35, Emax: 0.5, cond: true, comp: { Sn: 1 }, color: '#c9ced6' },
   Ni: { name: 'Nickel', Z: 28, A: 58.69, rho: 8.9, dmax: 1.3, Emax: 0.55, cond: true, comp: { Ni: 1 }, cryst: 'fcc', a: 3.524, color: '#9fb4c7' },
-  Al2O3: { name: 'Alumina inclusion', Z: 10.6, A: 20.4, rho: 3.95, dmax: 3.0, Emax: 0.45, cond: false, E2: 2.6, comp: { Al: 0.4, O: 0.6 }, color: '#e8a86a' },
+  Al2O3: { name: 'Alumina inclusion', Z: 10.6, A: 20.4, rho: 3.95, dmax: 3.0, Emax: 0.45, cond: false, E2: 2.6, comp: { Al: 0.4, O: 0.6 }, color: '#e8a86a',
+    cl: { eff: 0.35, bands: [{ id: 'Cr R-line', E: 1.786, w: 0.012, s: 0.7 }, { id: 'F centre', E: 3.0, w: 0.45, s: 0.3 }] } },
   Si: { name: 'Silicon', Z: 14, A: 28.09, rho: 2.33, dmax: 1.1, Emax: 0.25, cond: true, comp: { Si: 1 }, cryst: 'dia', a: 5.431, color: '#7f8fa3' },
-  SiO2: { name: 'Silicon dioxide', Z: 10.8, A: 20.0, rho: 2.2, dmax: 2.9, Emax: 0.42, cond: false, E2: 2.1, comp: { Si: 0.333, O: 0.667 }, color: '#5a6e86' },
+  SiO2: { name: 'Silicon dioxide', Z: 10.8, A: 20.0, rho: 2.2, dmax: 2.9, Emax: 0.42, cond: false, E2: 2.1, comp: { Si: 0.333, O: 0.667 }, color: '#5a6e86',
+    cl: { eff: 0.05, bands: [{ id: 'ODC (oxygen vacancy)', E: 2.7, w: 0.35, s: 0.5 }, { id: 'NBOHC', E: 1.9, w: 0.25, s: 0.5 }] } },
+  GaN: { name: 'Gallium nitride', Z: 19, A: 20.93, rho: 6.15, dmax: 1.6, Emax: 0.5, cond: true, comp: { Ga: 0.5, N: 0.5 }, color: '#7fb0d8',
+    cl: { eff: 1, Eg: 3.42, bands: [{ id: 'GaN band edge', E: 3.40, w: 0.07, s: 1 }, { id: 'yellow luminescence', E: 2.2, w: 0.42, s: 0.12 }] } },
   Cu: { name: 'Copper', Z: 29, A: 63.55, rho: 8.96, dmax: 1.3, Emax: 0.6, cond: true, comp: { Cu: 1 }, cryst: 'fcc', a: 3.615, color: '#e0915a' },
   Au: { name: 'Gold', Z: 79, A: 197.0, rho: 19.3, dmax: 1.5, Emax: 0.7, cond: true, comp: { Au: 1 }, color: '#f0c95a' },
   W: { name: 'Tungsten', Z: 74, A: 183.8, rho: 19.3, dmax: 1.4, Emax: 0.65, cond: true, comp: { W: 1 }, color: '#e6e6f0' },
@@ -106,10 +110,36 @@ export const rangeX = (m, E0, Ec) => (m.rho && E0 > Ec ? (0.064 * (Math.pow(E0, 
 // Charging: an uncoated insulator charges negatively when δ+η < 1 (above E2)
 export const charges = (m, E, coated) => !m.cond && !coated && E > m.E2;
 
+// ---------------------------------------------------------------- cathodoluminescence
+export const HC = 1239.84; // eV·nm: λ (nm) = HC / E (eV)
+// InGaN band gap (eV) with bowing, and the quantum-well emission: confinement and the quantum-confined Stark
+// effect (piezoelectric field) shift it ~80 meV below the bulk gap at these widths
+export const egInGaN = (x) => 3.42 * (1 - x) + 0.77 * x - 1.43 * x * (1 - x);
+export const qwEmission = (x) => egInGaN(x) - 0.08;
+// mean energy to make one electron–hole pair (Klein): ≈ 2.8 Eg + 0.6 eV
+export const pairEnergy = (Eg) => 2.8 * Eg + 0.6;
+// detectors: a photomultiplier for panchromatic images (blue-sensitive bialkali, falling into the red), a
+// CCD behind the spectrometer for spectra (silicon, weak in the UV)
+export const pmtQE = (lam) => Math.max(0, Math.exp(-(((lam - 400) / 190) ** 2)) * (lam > 290 ? 1 : 0));
+export const ccdQE = (lam) => Math.max(0, Math.min(1, (lam - 250) / 150)) * Math.exp(-(((Math.max(0, lam - 700)) / 250) ** 2));
+// an approximate visible colour for a wavelength, for the true-colour CL view
+export function lamRGB(l) {
+  let r = 0, g = 0, b = 0;
+  // below 440 nm a violet that does not overflow (the near-UV is shown as a dim violet)
+  if (l < 440) { r = Math.min(0.6, (0.6 * (440 - l)) / 60); b = 1; } else if (l < 490) { g = (l - 440) / 50; b = 1; } else if (l < 510) { g = 1; b = -(l - 510) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; } else if (l < 645) { r = 1; g = -(l - 645) / 65; } else r = 1;
+  const f = l < 420 ? 0.35 + (0.65 * (l - 380)) / 40 : l > 700 ? 0.35 + (0.65 * (780 - l)) / 80 : 1;
+  const k = Math.max(0.25, Math.min(1, f));
+  return [Math.max(0, r) * k, Math.max(0, g) * k, Math.max(0, b) * k];
+}
+
 // ---------------------------------------------------------------- X-ray lines (keV)
 export const XLINES = [
   { el: 'C', line: 'Kα', E: 0.277, Ec: 0.284, w: 1, y: 0.25 },
   { el: 'O', line: 'Kα', E: 0.525, Ec: 0.532, w: 1, y: 0.45 },
+  { el: 'N', line: 'Kα', E: 0.392, Ec: 0.402, w: 1, y: 0.35 },
+  { el: 'Ga', line: 'Lα', E: 1.098, Ec: 1.143, w: 0.6, y: 0.6 },
+  { el: 'Ga', line: 'Kα', E: 9.252, Ec: 10.367, w: 1, y: 0.95 },
+  { el: 'Ga', line: 'Kβ', E: 10.264, Ec: 10.367, w: 0.13, y: 0.95 },
   { el: 'Al', line: 'Kα', E: 1.487, Ec: 1.56, w: 1, y: 0.9 },
   { el: 'Si', line: 'Kα', E: 1.74, Ec: 1.839, w: 1, y: 1.0 },
   { el: 'Ni', line: 'Lα', E: 0.851, Ec: 0.855, w: 0.25, y: 0.5 },
@@ -128,7 +158,7 @@ export const XLINES = [
   { el: 'Pt', line: 'Mα', E: 2.048, Ec: 2.122, w: 1, y: 0.7 },
   { el: 'Pt', line: 'Lα', E: 9.442, Ec: 11.564, w: 1, y: 0.9 },
 ];
-export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b', Au: '#f0c95a' };
+export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b', Au: '#f0c95a', Ga: '#7fb0d8', N: '#b7a6ff' };
 export const detEff = (E) => Math.exp(-Math.pow(0.35 / E, 2)) * (1 - Math.exp(-40 / Math.pow(E, 2.4)) * 0) * Math.exp(-E / 60);
 // EDS resolution (keV FWHM) at energy E: electronic noise plus Fano statistics, set by the FWHM at Mn Kα (eV)
 export const edsFWHM = (E, mn = 128) => { const fano = 2.355 * 2.355 * 0.115 * 3.8, noise2 = Math.max(100, mn * mn - fano * 5899); return Math.sqrt(noise2 + fano * E * 1000) / 1000; };
@@ -366,7 +396,7 @@ export const SPECIMENS = {
   },
   ni: {
     id: 'ni', name: 'Polycrystalline nickel (polished)', short: 'Ni', fov: 150, fovMin: 2, fovMax: 1500,
-    note: 'Annealed, polished nickel: grains with annealing twins, a few alumina inclusions and polishing scratches.',
+    note: 'Annealed, polished nickel: grains with annealing twins, a few alumina inclusions (luminescent in CL: the ruby line of Cr³⁺ traces) and polishing scratches.', luminescent: true,
     sample(x, y) {
       const cell = 22;
       const g = voronoi(x, y, cell, 11);
@@ -389,6 +419,45 @@ export const SPECIMENS = {
       return { h, mat: 'Ni', grain: g.id * 2 + tw.t, ori: tw.O, gb: g.edge };
     },
     phases: ['Ni'],
+    // the alumina inclusion nearest the origin (luminescent, and an insulator that charges)
+    inclusion() {
+      for (let r = 0; r < 400; r += 3) for (let a = 0; a < 6.28; a += 0.2) { const x = r * Math.cos(a), y = r * Math.sin(a); if (this.sample(x, y).mat === 'Al2O3') return [x, y]; }
+      return [0, 0];
+    },
+  },
+  gan: {
+    id: 'gan', name: 'GaN with InGaN quantum wells', short: 'GaN/InGaN', fov: 6, fovMin: 0.3, fovMax: 60, luminescent: true,
+    note: 'A GaN film grown on sapphire with InGaN quantum wells ~80 nm below the surface (an LED structure). Threading dislocations (~3 × 10⁸ cm⁻²) end in small V-pits; the indium content of the wells fluctuates by a few percent.',
+    // wells 80 nm down; carriers diffuse ~90 nm sideways (the dark-spot size) but only ~25 nm through the p-GaN cap
+    qwDepth: 0.08, diffusion: 0.09, capture: 0.025,
+    sample(x, y) {
+      // threading dislocations: points on a jittered grid; the nearest one sets the distance used by CL
+      const c = 0.45, ix = Math.floor(x / c), iy = Math.floor(y / c);
+      let d = 9;
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+        const gx = ix + i, gy = iy + j;
+        if (hash(gx, gy, 61) > 0.62) continue;
+        const px = (gx + hash(gx, gy, 62)) * c, py = (gy + hash(gx, gy, 63)) * c;
+        d = Math.min(d, Math.hypot(x - px, y - py));
+      }
+      // V-pits where dislocations reach the surface (hexagonal in reality; round here)
+      let h = 0.0015 * vnoise(x * 4, y * 4, 6) + 0.0008 * vnoise(x * 25, y * 25, 7);
+      if (d < 0.045) h -= 0.035 * (1 - d / 0.045);
+      const xIn = 0.15 + 0.03 * (vnoise(x * 1.3, y * 1.3, 64) - 0.5) + 0.012 * (vnoise(x * 7, y * 7, 65) - 0.5);
+      return { h, mat: 'GaN', grain: -1, ori: null, dis: d, xIn };
+    },
+    // true dislocation count in a field (for checking analyses)
+    dislocations(cx, cy, fov) {
+      const c = 0.45, x0 = cx - fov / 2, y0 = cy - fov / 2;
+      let n = 0;
+      for (let gy = Math.floor(y0 / c) - 1; gy <= Math.floor((y0 + fov) / c) + 1; gy++) for (let gx = Math.floor(x0 / c) - 1; gx <= Math.floor((x0 + fov) / c) + 1; gx++) {
+        if (hash(gx, gy, 61) > 0.62) continue;
+        const px = (gx + hash(gx, gy, 62)) * c, py = (gy + hash(gx, gy, 63)) * c;
+        if (px >= x0 && px < x0 + fov && py >= y0 && py < y0 + fov) n++;
+      }
+      return n;
+    },
+    phases: [],
   },
   grid: {
     id: 'grid', name: 'Cross-grating standard (463 nm)', short: 'Grating', fov: 4, fovMin: 0.2, fovMax: 60, pitch: 0.4630,
@@ -414,7 +483,7 @@ export const SPECIMENS = {
     phases: [],
   },
   chip: {
-    id: 'chip', name: 'Chip cross-section (FIB)', short: 'Chip', fov: 12, fovMin: 0.3, fovMax: 40,
+    id: 'chip', name: 'Chip cross-section (FIB)', short: 'Chip', luminescent: true, fov: 12, fovMin: 0.3, fovMax: 40,
     note: 'A FIB-polished cross-section of a microchip: Si substrate, oxide, copper interconnects with W vias, an Al pad and a Pt protective cap.',
     sample(x, y) {
       const X = ((x % 12) + 12) % 12;

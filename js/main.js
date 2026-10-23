@@ -18,7 +18,7 @@ import { Scenarios, SCENARIOS } from './scenarios.js';
 import { Panel } from './panel.js';
 import { VirtualPanel } from './vpanel.js';
 import { openCalibration, hiddenField } from './calibui.js';
-import { AGENT, LINKS } from './config.js';
+import { AGENT, LINKS, SUPPORT } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const clamp = O.clamp;
@@ -35,15 +35,15 @@ let hoverIdx = -1;
 const MODES = [
   ['se', 'SE · ETD', 'secondary electrons', 'Imaging'], ['inlens', 'In-lens', 'through-the-lens SE', 'Imaging'], ['bse', 'BSE', 'backscattered', 'Imaging'],
   ['ebsd', 'EBSD', 'orientation maps', 'Diffraction'], ['tkd', 'TKD', 'transmission Kikuchi', 'Diffraction'],
-  ['eds', 'EDS', 'X-ray spectra', 'Spectroscopy'], ['mc', 'Interaction volume', 'Monte Carlo', 'Physics'],
+  ['eds', 'EDS', 'X-ray spectra', 'Spectroscopy'], ['cl', 'CL', 'cathodoluminescence', 'Spectroscopy'], ['mc', 'Interaction volume', 'Monte Carlo', 'Physics'],
 ];
-const KEYS = '1234567';
+const KEYS = '12345678';
 const logMap = (min, max) => ({ to: (v) => (Math.log(v / min) / Math.log(max / min)) * 1000, from: (t) => min * Math.pow(max / min, t / 1000) });
 const IMG = 'se inlens bse';
 
 const CONTROLS = [
   { sec: 'The specimen' },
-  { chips: 'spec', opts: [['sn', 'Tin on carbon'], ['ni', 'Polycrystalline Ni'], ['chip', 'Chip cross-section'], ['grid', 'Cross grating']] },
+  { chips: 'spec', opts: [['sn', 'Tin on carbon'], ['ni', 'Polycrystalline Ni'], ['chip', 'Chip cross-section'], ['grid', 'Cross grating'], ['gan', 'GaN / InGaN LED']] },
   { slider: 'fov', label: 'Field of view', dyn: () => ({ min: sim.spec.fovMin, max: sim.spec.fovMax }), log: true, fmt: (v) => `${R2.fmtLen(v)}  ×${Math.round(127000 / v).toLocaleString()}`, note: 'Drag the image to move the stage; scroll to zoom.' },
   { slider: 'tilt', label: 'Stage tilt', min: 0, max: 72, step: 1, fmt: (v) => `${v}°`, ends: ['flat', '', 'EBSD 70°'] },
   { toggles: [['coated', 'Carbon coating']] },
@@ -79,6 +79,11 @@ const CONTROLS = [
   { toggles: [['showHough', 'Hough bands']], modes: 'ebsd tkd' },
   { buttons: [['remap', 'Restart map']], modes: 'ebsd tkd' },
   { chips: 'edsSel', label: 'Map element', modes: 'eds', dynOpts: () => [['all', 'All']].concat(sim.eds ? sim.eds.syms.map((s) => [s, s]) : []) },
+  { sec: 'Cathodoluminescence', modes: 'cl' },
+  { chips: 'clMode', label: 'Detector', modes: 'cl', opts: [['pan', 'Panchromatic (PMT)'], ['mono', 'One wavelength']] },
+  { slider: 'clLam', label: 'Monochromator', min: 300, max: 800, step: 1, fmt: (v) => `${v} nm`, modes: 'cl', ends: ['UV', '', 'near-IR'] },
+  { slider: 'clBand', label: 'Bandwidth', min: 2, max: 100, step: 1, fmt: (v) => `${v} nm`, modes: 'cl' },
+  { p: 'Click a peak in the spectrum to image that band. Raise the voltage to reach the buried quantum wells; lower it for sharper dark spots at the dislocations.', modes: 'cl' },
   { slider: 'mcMax', label: 'Trajectories', min: 200, max: 6000, step: 100, fmt: (v) => v.toLocaleString(), modes: 'mc' },
   { buttons: [['remc', 'Restart simulation']], modes: 'mc' },
 
@@ -102,6 +107,9 @@ const CONTROLS = [
   { sec: 'Voice and agent' },
   { p: 'Type commands in AI mode (brain button, or /) or hold M and speak. An AI agent (for example Claude with the semview-mcp server, tools/semview-mcp) can run the microscope and answer questions out loud once you connect it.' },
   { buttons: [['agent', 'Connect agent'], ['panelcfg', 'Control panel…']] },
+  { sec: 'Python scripting' },
+  { p: 'Script the microscope in Python with NumPy, right here (Pyodide): set the beam, acquire calibrated data, run analyses, and test automation against hidden misalignments. The same script runs on a desktop, headless or driving this exhibit (tools/semview-py).' },
+  { buttons: [['ide', 'Open the Python IDE']] },
   { sec: 'Digital twin' },
   { p: 'The instrument profile holds what belongs to one particular SEM: gun brightness and energy spread, lens aberrations, scan calibration, the EDS detector. Calibrate it from data, save the whole session, export what the detectors record.' },
   { chips: 'profile', label: 'Instrument profile', get: () => S.profile.preset, dynOpts: () => Object.entries(PRESETS).map(([k, v]) => [k, v.name.split(',')[0]]) },
@@ -120,7 +128,7 @@ const ICONS = {
 // the analyses that fit each mode (Measure section and the command bar)
 const MEASURES = [
   ['fit_resolution', 'Resolution', 'se inlens bse'], ['fit_focus', 'Focus & astigmatism', 'se inlens bse'], ['calibrate_scale', 'Scale (grating)', 'se inlens bse'],
-  ['reconstruct_relief', '3D relief', 'bse'], ['fit_eds', 'EDS peaks', 'eds'], ['phase_map', 'Phases', 'eds'], ['index_ebsd', 'Map quality', 'ebsd tkd'], ['mc_summary', 'η and range', 'mc'],
+  ['reconstruct_relief', '3D relief', 'bse'], ['fit_eds', 'EDS peaks', 'eds'], ['phase_map', 'Phases', 'eds'], ['index_ebsd', 'Map quality', 'ebsd tkd'], ['fit_cl', 'Bands & dislocations', 'cl'], ['mc_summary', 'η and range', 'mc'],
 ];
 const measureFor = (m) => MEASURES.filter((a) => a[2].split(' ').includes(m));
 
@@ -223,6 +231,7 @@ function setMode(m) {
   hoverIdx = -1;
   scn?.recorder.event('mode', { to: m });
   refresh(); explain(null);
+  if (autoNarrate) N.speak('mode', modeText());
 }
 function cycleMode(d) { const i = MODES.findIndex((m) => m[0] === S.mode); setMode(MODES[(i + d + MODES.length) % MODES.length][0]); }
 function moveStage(dx, dy) { S.cx += dx; S.cy += dy; sim.invalidate('stage'); }
@@ -254,6 +263,7 @@ function action(id) {
   if (id === 'training') openTraining();
   if (id === 'replayFile') $('#fileReplay').click();
   if (id === 'lastSession') { if (scn.lastSession) scn.downloadSession(scn.lastSession); else flashChange('No recorded session yet', 'Run a training task with recording on, then download it here.'); }
+  if (id === 'ide') ide.toggle();
   if (id === 'agent') { if (agent.connected || agent.status === 'connecting') agent.disconnect(); else agent.connect(); }
   if (id === 'panelcfg') { $('#panelCfg').hidden = false; hwPanel.renderConfig($('#panelCfg .pBody')); }
   if (id === 'calib') openCalibration({ S, sim, onApply: applyCalibration });
@@ -329,6 +339,7 @@ function header() {
     ebsd: ['EBSD orientation map', 'Kikuchi pattern & indexing'],
     tkd: ['TKD orientation map', 'Kikuchi pattern & indexing'],
     eds: ['EDS element map', 'X-ray spectrum'],
+    cl: [`CL detector · ${S.clMode === 'pan' ? 'panchromatic' : `${S.clLam} nm`}`, 'CL spectrum'],
     mc: ['Monte Carlo trajectories · side view', 'Backscatter energies & depth profiles'],
   }[S.mode];
   $('#detTitle').textContent = n[0] + (S.wobble && IMG.includes(S.mode) ? ' · wobbler' : ''); $('#secTitle').textContent = n[1];
@@ -357,6 +368,15 @@ const N = {
 };
 const modeText = () => { const i = modeInfo(S, sim); return `${i.title}. ${i.body}`; };
 $('#infoSpeak').addEventListener('click', () => N.toggle('mode', modeText()));
+// auto-narration (N): read each mode and component card aloud as it opens
+let autoNarrate = store('sem-narrate') === '1';
+function setAutoNarrate(on) {
+  autoNarrate = on; store('sem-narrate', on ? '1' : '0');
+  $('#btnNarrate').setAttribute('aria-pressed', String(on)); $('#btnNarrate').classList.toggle('on', on);
+  if (on) N.speak(openComp ?? 'mode', openComp ? $('#comp .compBody').innerText : modeText()); else N.stop();
+}
+$('#btnNarrate').addEventListener('click', () => setAutoNarrate(!autoNarrate));
+$('#btnNarrate').setAttribute('aria-pressed', String(autoNarrate));
 $('#compSpeak').addEventListener('click', () => openComp && N.toggle(openComp, $('#comp .compBody').innerText));
 
 // component cards
@@ -368,6 +388,7 @@ function showComponent(name, el) {
   openComp = name; el.classList.add('active');
   card.querySelector('.compBody').innerHTML = renderComponent(name, S, sim);
   card.hidden = false; card.scrollTop = 0;
+  if (autoNarrate) N.speak(name, card.querySelector('.compBody').innerText);
   if (!document.body.classList.contains('stacked')) {
     const r = el.getBoundingClientRect(), W = 360, H = Math.min(card.offsetHeight, innerHeight - 40);
     const x = r.right + 14 + W < innerWidth - 360 ? r.right + 14 : Math.max(16, r.left - W - 14);
@@ -584,6 +605,15 @@ function wire() {
   $('#btnFull').addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()));
   $('#btnHelp').addEventListener('click', () => ($('#help').hidden = false));
   $('#temLink').href = LINKS.tem;
+  // the explanation panel grows up from the bottom: stop it below the hero, so the buttons under the title stay visible
+  { const hero = $('.hero'), fitHero = () => document.documentElement.style.setProperty('--heroB', `${Math.round(hero.getBoundingClientRect().bottom)}px`);
+    new ResizeObserver(fitHero).observe(hero); addEventListener('resize', fitHero); fitHero(); }
+  if (SUPPORT.coffee) { $('#btnCoffee').href = SUPPORT.coffee; $('#btnCoffee').hidden = false; }
+  $('#btnTem').href = LINKS.tem;
+  $('#btnNews').addEventListener('click', openNews);
+  $('#newsModal').addEventListener('click', (e) => { if (e.target.id === 'newsModal' || e.target.closest('.close')) $('#newsModal').hidden = true; });
+  document.querySelectorAll('[data-fold]').forEach((b) => b.addEventListener('click', () => fold(b.dataset.fold)));
+  for (const k of ['L', 'R']) if (store(`sem-fold${k}`) === '1') document.body.classList.add(`fold${k}`);
   $('#help').addEventListener('click', (e) => { if (e.target.id === 'help' || e.target.closest('.close')) $('#help').hidden = true; });
   $('#btnTrain').addEventListener('click', openTraining);
   $('#btnPanel').addEventListener('click', () => action('panelcfg'));
@@ -645,6 +675,11 @@ function wire() {
       S.seg = { ...S.seg, [q]: S.seg[q] === 1 ? -1 : S.seg[q] === -1 ? 0 : 1 };
       return segChanged();
     }
+    if (S.mode === 'cl' && R2.layout.cl) {
+      const L = R2.layout.cl, x = e.clientX - secCv.getBoundingClientRect().left, lam = L.l0 + ((x - L.x0) / L.w) * (L.l1 - L.l0);
+      if (lam >= L.l0 && lam <= L.l1) set('clLam', Math.round(lam));
+      return;
+    }
     if (S.mode !== 'eds' || !R2.layout.eds) return;
     const L = R2.layout.eds, x = e.clientX - secCv.getBoundingClientRect().left, E = ((x - L.x0) / L.w) * L.Emax;
     let best = null, bd = 0.25;
@@ -658,6 +693,10 @@ function wire() {
     if (e.key.length === 1 && i >= 0) setMode(MODES[i][0]);
     else if (e.key === ' ') { e.preventDefault(); action('pause'); }
     else if (k === 'l') toggle('showLabels');
+    else if (k === 'e') toggle('showElectrons');
+    else if (k === 'n') setAutoNarrate(!autoNarrate);
+    else if (e.key === '[') fold('L');
+    else if (e.key === ']') fold('R');
     else if (k === 'r') scene.resetView();
     else if (k === 'c') { S.clarity = S.clarity === 'edu' ? 'real' : 'edu'; sim.invalidate('clarity'); refresh(); explain('clarity'); }
     else if (k === 'v') vPanel.openDock();
@@ -668,19 +707,61 @@ function wire() {
     else if (k === 'm' && !e.repeat) voice.start();
     else if (e.key === '/') { e.preventDefault(); setAI(true); }
     else if (e.key === 'Escape') {
-      $('#help').hidden = true; closeComponent(); setExpanded(false); setAI(false); if (scene.tour) scene.stopTour();
+      $('#help').hidden = true; $('#newsModal').hidden = true; closeComponent(); setExpanded(false); setAI(false); if (scene.tour) scene.stopTour();
       if (agent.connected || agent.status === 'connecting') { agent.disconnect(); voice.flash('<b>Agent disconnected</b><p>Press Connect agent (Controls → Voice and agent) to reconnect.</p>', 3500); }
     }
   });
   window.addEventListener('keyup', (e) => { if ((e.key === 'm' || e.key === 'M') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) voice.stop(); });
   window.addEventListener('resize', resize);
 }
+// collapse the explanation (L) or the controls (R) to a tab at the screen edge, giving the instrument more room
+function fold(side, on = !document.body.classList.contains(`fold${side}`)) {
+  document.body.classList.toggle(`fold${side}`, on);
+  store(`sem-fold${side}`, on ? '1' : '0');
+  resize();
+}
+// news: the shared TEM-view / SEM-view mailing list
+function openNews() {
+  $('#newsBody').innerHTML = `<p>New techniques, training tasks and the Console, for SEM-view and TEM-view: get an email when they ship.</p>
+    ${SUPPORT.subscribe ? `<form id="newsForm" class="newsform" novalidate>
+      <label>Name<input name="name" autocomplete="name" required maxlength="100"></label>
+      <label>Email<input type="email" name="email" placeholder="you@example.org" autocomplete="email" required></label>
+      <label><span>Institution <small>(optional)</small></span><input name="institution" autocomplete="organization" maxlength="160"></label>
+      <fieldset><legend>I am a</legend>${['student', 'staff', 'faculty', 'hobbyist'].map((r) => `<label class="role"><input type="radio" name="role" value="${r}" required>${r[0].toUpperCase() + r.slice(1)}</label>`).join('')}</fieldset>
+      <input type="text" name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+      <button class="btn primary" type="submit">Subscribe</button>
+    </form><p class="muted" id="newsMsg">Only used for SEM-view and TEM-view news, a few emails a year. Reply to any of them to unsubscribe.</p>` : ''}
+    <p class="muted">Or follow the release notes on <a href="${LINKS.repo}/releases" target="_blank" rel="noopener">GitHub</a>.</p>`;
+  $('#newsModal').hidden = false;
+  const f = $('#newsForm');
+  if (!f) return;
+  f.name.focus();
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('#newsMsg'), btn = f.querySelector('button[type=submit]'), email = f.email.value.trim(), name = f.name.value.trim(), role = f.role.value;
+    const bad = (text, el) => { msg.textContent = text; msg.className = 'err'; el?.focus(); };
+    if (!name) return bad('Please enter your name.', f.name);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return bad('Please enter a valid email address.', f.email);
+    if (!role) return bad('Please choose student, staff, faculty or hobbyist.', f.querySelector('[name=role]'));
+    btn.disabled = true; btn.textContent = 'Subscribing…';
+    try {
+      const r = await fetch(SUPPORT.subscribe, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ email, name, institution: f.institution.value.trim(), role, website: f.website.value, source: 'sem-view' }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || `error ${r.status}`);
+      $('#newsBody').innerHTML = `<p class="thanks"><b>Thanks for subscribing${j.already ? '' : `, ${esc(name.split(' ')[0])}`}!</b></p><p>${j.already ? 'This address is already on the list' : 'News will go to'} <b>${esc(email)}</b>.</p>`;
+    } catch (err) {
+      msg.textContent = `Could not subscribe: ${err.message}. Please try again later.`; msg.className = 'err';
+      btn.disabled = false; btn.textContent = 'Subscribe';
+    }
+  });
+}
 function resize() {
   const w = innerWidth, h = innerHeight, wide = w >= 1100;
   document.body.classList.toggle('stacked', !wide);
   if (wide) {
     const L = $('.explain').getBoundingClientRect(), Rr = $('.controls').getBoundingClientRect(), D = $('.detector').getBoundingClientRect();
-    scene.resize(w, h, { left: L.right, right: w - Rr.left, bottom: h - D.top + 10, top: 70 });
+    const bc = document.body.classList;
+    scene.resize(w, h, { left: bc.contains('foldL') ? 0 : L.right, right: bc.contains('foldR') ? 0 : w - Rr.left, bottom: h - D.top + 10, top: 70 });
   } else { const g = $('#gl').getBoundingClientRect(); scene.resize(g.width, g.height, { left: 0, right: 0, bottom: 0, top: 0 }); }
 }
 
@@ -712,7 +793,7 @@ function frame(now) {
     lastSlow = now; updateTable();
     hwPanel.hud($('#panelHud')); vPanel.update();
     if (!$('#panelCfg').hidden && hwPanel.pad) { if (!$('#pLive')) hwPanel.renderConfig($('#panelCfg .pBody')); hwPanel.renderLive($('#pLive')); }
-    if (['ebsd', 'tkd', 'eds', 'mc'].includes(S.mode)) renderInfo();
+    if (['ebsd', 'tkd', 'eds', 'cl', 'mc'].includes(S.mode)) renderInfo();
     $('#status').textContent = `· ${fps} fps`;
   }
   requestAnimationFrame(frame);

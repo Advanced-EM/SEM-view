@@ -6,6 +6,7 @@
 // parseCommand() is pure and runs in Node too, so the grammar is tested without a browser (tests/voice.mjs).
 
 const MODES = [
+  ['cl', /\b(cl|c\s*l|cathodo\s*-?\s*luminescen\w*|luminescen\w*|light emission)\b/],
   ['tkd', /\b(tkd|t\s*k\s*d|transmission kikuchi|on\s*-?\s*axis kikuchi)\b/],
   ['ebsd', /\b(ebsd|e\s*b\s*s\s*d|orientation map(ping)?|kikuchi|backscatter(ed)? diffraction)\b/],
   ['mc', /\b(monte\s*-?\s*carlo|interaction volume|trajector(y|ies)|mc mode)\b/],
@@ -16,12 +17,13 @@ const MODES = [
 ];
 const SPECS = [
   ['grid', /\b(grating|cross\s*-?\s*grating|calibration (standard|grating|sample)|463)\b/],
+  ['gan', /\b(gan|gallium nitride|ingan|quantum wells?|led( wafer)?)\b/],
   ['sn', /\b(tin|sn|resolution standard|spheres)\b/],
   ['ni', /\b(nickel|ni|polycrystal(line)?|grains)\b/],
   ['chip', /\b(chip|cross\s*-?\s*section|interconnects?|copper lines|lamella)\b/],
 ];
-const MODE_NAMES = { se: 'SE (Everhart–Thornley)', inlens: 'in-lens SE', bse: 'BSE', ebsd: 'EBSD', tkd: 'TKD', eds: 'EDS', mc: 'interaction volume (Monte Carlo)' };
-const SPEC_NAMES = { sn: 'tin on carbon', ni: 'polycrystalline nickel', chip: 'the chip cross-section', grid: 'the 463 nm cross grating' };
+const MODE_NAMES = { se: 'SE (Everhart–Thornley)', inlens: 'in-lens SE', bse: 'BSE', ebsd: 'EBSD', tkd: 'TKD', eds: 'EDS', mc: 'interaction volume (Monte Carlo)', cl: 'cathodoluminescence' };
+const SPEC_NAMES = { sn: 'tin on carbon', ni: 'polycrystalline nickel', chip: 'the chip cross-section', grid: 'the 463 nm cross grating', gan: 'GaN with InGaN quantum wells' };
 
 // "minus fifty two point five" → "-52.5"; digits pass through
 const SMALL = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
@@ -68,7 +70,7 @@ export function parseCommand(raw, ctx = {}) {
   if (has(/\b(what am i (looking at|seeing)|what is (this|that)|explain( this| that| it)?|describe( this| it)?|tell me about (this|it))\b/)) return { ops: [{ op: 'narrate' }] };
 
   // analyses (emskills tools where the registry has one)
-  const measureVerb = /\b(fit|measure|estimate|analy[sz]e|check|index|find|identify|calibrate|calculate|determine|reconstruct|map)\b|^(what|which|how (good|sharp))\b/;
+  const measureVerb = /\b(fit|count|measure|estimate|analy[sz]e|check|index|find|identify|calibrate|calculate|determine|reconstruct|map)\b|^(what|which|how (good|sharp))\b/;
   if (measureVerb.test(t)) {
     if (/\b(magnification|scale|scale bar|pixel size|grating|scan (aspect|shear|distortion))\b/.test(t)) return { ops: [{ op: 'analyze', v: 'calibrate_scale' }] };
     if (/\b(resolution|probe( size| diameter)?|spot size|edge width)\b/.test(t)) return { ops: [{ op: 'analyze', v: 'fit_resolution' }] };
@@ -78,6 +80,7 @@ export function parseCommand(raw, ctx = {}) {
     if (/\b(peaks?|elements?|composition|eds|x\s*-?\s*rays?|detector resolution|energy scale)\b/.test(t)) return { ops: [{ op: 'analyze', v: 'fit_eds' }] };
     if (/\b(indexing|indexed|map quality|orientations?|ebsd|tkd|patterns?)\b/.test(t)) return { ops: [{ op: 'analyze', v: 'index_ebsd' }] };
     if (/\b(backscatter(ing)? coefficient|eta|range|penetration)\b/.test(t)) return { ops: [{ op: 'analyze', v: 'mc_summary' }] };
+    if (/\b(dislocations?|dark spots|indium|luminescence|cl (peaks|bands|spectrum)|emission (peaks|bands))\b/.test(t)) return { ops: [{ op: 'analyze', v: 'fit_cl' }] };
   }
   if (/^(analy[sz]e|analysis|run (an |the )?analysis|measure (this|it)|fit (this|it))\b/.test(t)) return { ops: [{ op: 'analyze', v: null }] };
 
@@ -124,6 +127,12 @@ export function parseCommand(raw, ctx = {}) {
   if (has(/\bcomposition(al)?( contrast| mode)?\b|\ball (four )?quadrants\b/)) ops.push({ op: 'chip', k: 'bseMode', v: 'comp' });
   else if (has(/\btopograph\w*( contrast| mode)?\b/)) ops.push({ op: 'chip', k: 'bseMode', v: /\b(vertical|y|up|c\s*-?\s*minus\s*d)\b/.test(t) ? 'topoY' : 'topoX' });
 
+  // cathodoluminescence: a monochromator wavelength, or panchromatic
+  if ((m = t.match(new RegExp(String.raw`\b(?:wavelength|monochromator|lambda)(?:\s+(?:to|at|of))?\s+${NUM}`))) || (!has(/\b(field|fov|view|hfw|width|focus)\b/) && (m = t.match(/\b(\d{3})\s*(?:nm|nanomet\w*)\b/)))) { if (+m[1] >= 300 && +m[1] <= 800) ops.push({ op: 'set', k: 'clLam', v: +m[1] }); }
+  if ((m = t.match(new RegExp(String.raw`\bband\s*(?:width|pass)?(?:\s+(?:to|of))?\s+${NUM}`)))) ops.push({ op: 'set', k: 'clBand', v: Math.abs(num(m[1])) });
+  if (has(/\bpan\s*-?\s*chromatic\b|\ball (the )?light\b/)) ops.push({ op: 'set', k: 'clMode', v: 'pan' });
+  else if (has(/\bmono\s*-?\s*chromatic\b/) && !ops.some((o) => o.k === 'clLam')) ops.push({ op: 'set', k: 'clMode', v: 'mono' });
+
   // beam and view
   if (has(/\b(unblank|resume|unpause|beam on|turn on the beam|restore the beam)\b/)) { if (ctx.paused) ops.push({ op: 'action', v: 'pause', said: 'Beam on' }); }
   else if (has(/\b(blank|stop|pause|turn off|block)( the)? beam\b|^pause$|\bbeam off\b/)) { if (!ctx.paused) ops.push({ op: 'action', v: 'pause', said: 'Beam blanked' }); }
@@ -146,14 +155,14 @@ export function parseCommand(raw, ctx = {}) {
 }
 
 export const HELP = 'Try: "switch to BSE", "load nickel", "20 kV", "current 1 nA", "auto focus", "focus plus 0.5", "stigmator x 0.3", "field of view 5 microns", "tilt 70", "coat the sample", "acquire". Measure: "calibrate the magnification", "measure the resolution", "check the astigmatism", "reconstruct the relief", "fit the EDS peaks", "map the phases". Or ask a question.';
-const ANALYSIS_NAMES = { calibrate_scale: 'Calibrate the scale on the grating (emskills scalebar-calibrate)', reconstruct_relief: 'Reconstruct the 3D relief (emskills sem-topography)', phase_map: 'Map the phases (emskills edax-phase-map)', fit_eds: 'Fit the EDS peaks', fit_resolution: 'Measure the resolution', fit_focus: 'Measure focus and astigmatism', index_ebsd: 'Check the EBSD map', mc_summary: 'Summarize the Monte Carlo' };
+const ANALYSIS_NAMES = { fit_cl: 'Fit the CL bands and count dislocations', calibrate_scale: 'Calibrate the scale on the grating (emskills scalebar-calibrate)', reconstruct_relief: 'Reconstruct the 3D relief (emskills sem-topography)', phase_map: 'Map the phases (emskills edax-phase-map)', fit_eds: 'Fit the EDS peaks', fit_resolution: 'Measure the resolution', fit_focus: 'Measure focus and astigmatism', index_ebsd: 'Check the EBSD map', mc_summary: 'Summarize the Monte Carlo' };
 export const EXAMPLES = ['switch to BSE', 'in-lens mode', 'EBSD', 'load nickel', 'load the grating', '20 kV', 'current 1 nA', 'aperture 30', 'working distance 10', 'auto focus', 'focus plus 0.5', 'stigmator x 0.3', 'stigmator y minus 0.2',
   'zoom in', 'field of view 5 microns', 'magnification 20000', 'tilt 70', 'dwell 5', 'scan slower', 'coat the sample', 'grid bias minus 100', 'topography', 'composition', 'wobbler', 'realistic', 'acquire',
-  'calibrate the magnification', 'measure the resolution', 'check the astigmatism', 'reconstruct the relief', 'fit the EDS peaks', 'map the phases', 'check the indexing', 'what is the backscatter coefficient', 'analyze', 'what am I looking at?', 'help'];
+  'calibrate the magnification', 'measure the resolution', 'check the astigmatism', 'reconstruct the relief', 'fit the EDS peaks', 'map the phases', 'check the indexing', 'what is the backscatter coefficient', 'cathodoluminescence', 'load GaN', 'wavelength 450', 'panchromatic', 'count the dislocations', 'analyze', 'what am I looking at?', 'help'];
 
 // ------------------------------------------------------------------ near misses: correct, suggest, then confirm
 const STOP = new Set(['the', 'a', 'an', 'to', 'of', 'in', 'on', 'at', 'is', 'are', 'me', 'please', 'can', 'you', 'it', 'this', 'and', 'my', 'for', 'with', 'now']);
-const EXTRA = ['bse', 'backscatter', 'backscattered', 'secondary', 'lens', 'inlens', 'ebsd', 'tkd', 'eds', 'edx', 'monte', 'carlo', 'interaction', 'volume', 'kikuchi',
+const EXTRA = ['cathodoluminescence', 'luminescence', 'wavelength', 'panchromatic', 'monochromatic', 'dislocations', 'gan', 'indium', 'bse', 'backscatter', 'backscattered', 'secondary', 'lens', 'inlens', 'ebsd', 'tkd', 'eds', 'edx', 'monte', 'carlo', 'interaction', 'volume', 'kikuchi',
   'tin', 'nickel', 'chip', 'grating', 'standard', 'focus', 'autofocus', 'stigmator', 'stig', 'astigmatism', 'zoom', 'magnification', 'current', 'aperture', 'working', 'distance',
   'tilt', 'dwell', 'scan', 'faster', 'slower', 'coat', 'coating', 'carbon', 'bias', 'grid', 'composition', 'topography', 'relief', 'phases', 'phase', 'map', 'resolution', 'probe',
   'calibrate', 'beam', 'blank', 'unblank', 'acquire', 'capture', 'labels', 'export', 'analyze', 'measure', 'fit', 'peaks', 'elements', 'load', 'switch', 'show', 'realistic',
@@ -225,7 +234,7 @@ export function describe(op) {
     case 'spec': return `Specimen: ${SPEC_NAMES[op.v]}`;
     case 'set': return ({ focus: () => `Focus ${op.v > 0 ? '+' : ''}${f(op.v, 3)} µm`, fov: () => `Field of view ${op.v >= 1 ? `${f(op.v, 2)} µm` : `${f(op.v * 1000, 0)} nm`}`, kV: () => `${op.v} kV`, current: () => (op.v >= 1000 ? `Probe current ${f(op.v / 1000, 2)} nA` : `Probe current ${f(op.v, 0)} pA`),
       aperture: () => `Aperture ${op.v} µm`, wd: () => `Working distance ${op.v} mm`, tilt: () => `Tilt ${op.v}°`, dwell: () => `Dwell ${op.v} µs`, stigX: () => `Stigmator X ${op.v}`, stigY: () => `Stigmator Y ${op.v}`,
-      coated: () => (op.v ? 'Carbon coating on' : 'Coating removed'), etdBias: () => `ETD grid ${op.v} V`, clarity: () => (op.v === 'real' ? 'Physically realistic view' : 'Educational view'), showLabels: () => (op.v ? 'Labels on' : 'Labels off') }[op.k] ?? (() => `${op.k} ${op.v}`))();
+      coated: () => (op.v ? 'Carbon coating on' : 'Coating removed'), clLam: () => `CL at ${op.v} nm`, clBand: () => `CL bandwidth ${op.v} nm`, clMode: () => (op.v === 'pan' ? 'Panchromatic CL' : 'Monochromatic CL'), etdBias: () => `ETD grid ${op.v} V`, clarity: () => (op.v === 'real' ? 'Physically realistic view' : 'Educational view'), showLabels: () => (op.v ? 'Labels on' : 'Labels off') }[op.k] ?? (() => `${op.k} ${op.v}`))();
     case 'chip': return op.k === 'bseMode' ? `BSE: ${{ comp: 'composition (A+B+C+D)', topoX: 'topography (A−B)', topoY: 'topography (C−D)' }[op.v]}` : `${op.k} ${op.v}`;
     case 'nudge': return op.d < 0 ? 'Focus down' : 'Focus up';
     case 'zoom': return op.f < 1 ? 'Zoom in' : 'Zoom out';
@@ -351,7 +360,8 @@ export class Voice {
     clearTimeout(this.tm); this.el.innerHTML = html; this.el.hidden = false; this.sticky = sticky;
     return this.el;
   }
-  flash(html, ms = 3500) { this.bubble(html); this.tm = setTimeout(() => this.hide(), ms); }
+  // hold keeps captions up (tools/shots.mjs takes screenshots of them)
+  flash(html, ms = 3500) { this.bubble(html); if (!this.hold) this.tm = setTimeout(() => this.hide(), ms); }
   hide() { if (this.el) this.el.hidden = true; }
 }
 

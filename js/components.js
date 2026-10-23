@@ -140,6 +140,15 @@ export const COMPONENTS = {
     limits: 'Needs FIB or electropolished lamellae; thicker regions give diffuse patterns.',
     live: (S) => [['Foil', `${S.tkdThick} nm`]],
   },
+  'CL mirror & spectrometer': {
+    kicker: 'Spectroscopy',
+    role: 'Collects the light the beam makes in the specimen and sends it to a photomultiplier or a spectrometer: cathodoluminescence.',
+    physics: 'A <b>parabolic mirror</b> slides in between the pole piece and the specimen, with a hole for the beam; the beam spot sits at its focus, so the light leaves as a parallel beam to the side port. There a grating <b>spectrometer</b> with a CCD records spectra (or hyperspectral maps, a spectrum per pixel), or a <b>photomultiplier</b> takes fast panchromatic images; with a monochromator in front it images one band.',
+    specs: [['Collection', 'up to ~1.4π sr'], ['Range', '~200–1700 nm (UV to near-IR detectors)'], ['Spectral resolution', '~0.1–2 nm'], ['Spatial resolution', '~10–100 nm (generation volume + diffusion)']],
+    metrology: 'The wavelength scale is calibrated with an Hg/Ar lamp; the system response (mirror, grating, detector) with a calibrated lamp, so spectra from different settings can be compared. Mirror alignment is optimized on a bright, small emitter.',
+    limits: 'Spatial resolution is set by the generation volume and carrier diffusion, not the probe; electron-beam damage and heating can quench the emission; cooling the stage sharpens bands.',
+    live: (S, sim) => [['Window', S.clMode === 'pan' ? 'panchromatic' : `${S.clLam} ± ${S.clBand / 2} nm`], ['Working distance', `${S.wd} mm`]],
+  },
   'Vacuum chamber': {
     kicker: 'Environment',
     role: 'High vacuum keeps electrons from scattering off gas and protects the gun; ports carry detectors.',

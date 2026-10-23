@@ -8,6 +8,7 @@ export const defaultState = () => ({
   etdBias: 250, bseMode: 'comp', seg: { A: 1, B: 1, C: 1, D: 1 },
   mapN: 40, expo: 10, mapView: 'ipf', showHough: true, tkdThick: 90,
   edsSel: 'all', mcMax: 2500,
+  clMode: 'pan', clLam: 450, clBand: 10,
   speed: 1, paused: false, showLabels: true, showElectrons: true, showGlass: true, autoRotate: false,
   profile: newProfile('schottky'),
   // hidden misalignment added to the knob settings (training scenarios); never shown in the controls
@@ -16,4 +17,4 @@ export const defaultState = () => ({
 
 // keys a saved session may set (UI-only toggles are left alone)
 export const SESSION_KEYS = ['mode', 'clarity', 'spec', 'fov', 'cx', 'cy', 'tilt', 'coated', 'kV', 'current', 'aperture', 'wd', 'focus', 'stigX', 'stigY', 'apX', 'apY',
-  'dwell', 'etdBias', 'bseMode', 'seg', 'mapN', 'expo', 'mapView', 'tkdThick', 'edsSel', 'mcMax', 'profile', 'mis'];
+  'dwell', 'etdBias', 'bseMode', 'seg', 'mapN', 'expo', 'mapView', 'tkdThick', 'edsSel', 'mcMax', 'clMode', 'clLam', 'clBand', 'profile', 'mis'];

@@ -121,7 +121,8 @@ export class Panel {
     else if (k === 'optFocus') { this.api.action('autofocus'); this.say('Auto focus'); }
     else this.api.toggle(k);
   }
-  setMF(k) { this.mf = k; this.say(`Multifunction knobs: ${MF.find((m) => m[0] === k)[1]}`); }
+  // turns not yet applied belong to the knob function they were made with, so apply them before switching
+  setMF(k) { if (Object.keys(this.acc).length) this.apply(); this.mf = k; this.say(`Multifunction knobs: ${MF.find((m) => m[0] === k)[1]}`); }
   mfList() { return MF; }
   mfNow() { return this.mf; }
   // what each knob is doing right now, for the on-screen panel

@@ -1,0 +1,94 @@
+/* Seeing with Electrons · TEM-view guides: shared styles for printed procedures (US Letter, printed to PDF by
+   tools/guides.mjs). Interior pages follow a plain technical-manual layout; only the covers are dark. */
+@page { size: 8.5in 11in; margin: 0; }
+:root {
+  --night: #05070b; --accent: #6fd6ff; --blue: #0a5f91;
+  --ink: #1a1f26; --muted: #5d6773; --rule: #cfd6dd; --paper: #ffffff;
+  --serif: 'Instrument Serif', Georgia, serif; --sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #4a5260; }
+body { font: 400 9.5pt/1.5 var(--sans); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+@media screen { .page { margin: 24px auto; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); } }
+.page { width: 8.5in; height: 11in; position: relative; overflow: hidden; background: var(--paper); page-break-after: always; break-after: page; padding: 0.75in 0.75in 0.8in; }
+.page:last-child { page-break-after: auto; break-after: auto; }
+h1, h2 { font-family: var(--serif); font-weight: 400; margin: 0; }
+h2 { font-size: 26pt; line-height: 1.05; margin: 0 0 8pt; }
+h3 { font: 600 10pt var(--sans); margin: 14pt 0 5pt; }
+p { margin: 0 0 7pt; }
+b { font-weight: 600; }
+.step { font: 600 8.5pt var(--sans); color: var(--blue); margin-bottom: 4pt; }
+.lede { font-size: 10pt; max-width: 6.2in; margin-bottom: 4pt; }
+
+/* running header and footer */
+.run { position: absolute; left: 0.75in; right: 0.75in; top: 0.36in; display: flex; justify-content: space-between; font-size: 7.5pt; color: var(--muted); border-bottom: 0.5pt solid var(--rule); padding-bottom: 4pt; }
+.foot { position: absolute; left: 0.75in; right: 0.75in; bottom: 0.38in; display: flex; justify-content: space-between; font-size: 7.5pt; color: var(--muted); border-top: 0.5pt solid var(--rule); padding-top: 4pt; }
+
+/* layout */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24pt; }
+.side { display: grid; grid-template-columns: 1fr 2.45in; gap: 24pt; align-items: start; }
+
+/* procedure: plain hanging numbers */
+ol.proc { padding-left: 16pt; margin: 4pt 0 8pt; }
+ol.proc > li { padding-left: 3pt; margin-bottom: 5pt; }
+ol.proc > li::marker { font-weight: 600; color: var(--blue); }
+ul.plain { padding-left: 14pt; margin: 4pt 0 8pt; }
+ul.plain li { margin-bottom: 3pt; }
+.result { margin: 6pt 0 8pt; }
+.result b:first-child { color: var(--blue); }
+
+/* notes and cautions, as in an instrument manual: a run-in label between hairlines */
+.note { border-top: 0.5pt solid var(--rule); border-bottom: 0.5pt solid var(--rule); padding: 6pt 0; margin: 10pt 0; font-size: 9pt; }
+.note > b:first-child { margin-right: 4pt; }
+.note.caution > b:first-child { color: #9a4b00; }
+
+/* figures: image, then a numbered caption below */
+.fig { margin: 0; }
+.fig img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #000; }
+.fig figcaption { font-size: 7.8pt; line-height: 1.4; color: var(--muted); padding-top: 4pt; }
+.fig figcaption b { color: var(--ink); }
+.figs2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+.figs3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10pt; }
+.figs4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; }
+.figs5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7pt; }
+.figs5 .fig figcaption, .figs4 .fig figcaption { font-size: 7.2pt; }
+.stack { display: grid; gap: 10pt; }
+
+/* tables */
+table.t { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin: 6pt 0 10pt; }
+table.t th { text-align: left; font-weight: 600; border-bottom: 1pt solid var(--ink); padding: 3pt 5pt; }
+table.t td { border-bottom: 0.5pt solid var(--rule); padding: 4pt 5pt; vertical-align: top; }
+table.t td.n { width: 18pt; color: var(--blue); font-weight: 600; }
+table.t td.box { width: 16pt; } table.t td.box::before { content: ''; display: inline-block; width: 8pt; height: 8pt; border: 0.8pt solid var(--ink); }
+table.t td.line { width: 1in; }
+
+/* cover and back cover */
+.cover { background: var(--night); color: #e8f1f8; padding: 0; }
+.cover .art { position: absolute; right: 0.2in; top: 2.3in; bottom: 0.2in; aspect-ratio: 0.7; background-size: 100% 100%; }
+.cover .top { position: absolute; left: 0.75in; right: 0.75in; top: 0.6in; }
+.cover .brandline { font-size: 8pt; letter-spacing: 0.04em; color: #9fb4c6; display: flex; justify-content: space-between; }
+.cover h1 { font-size: 50pt; line-height: 0.98; margin-top: 22pt; color: #fff; }
+.cover h1 em { color: var(--accent); }
+.cover .sub { font-size: 11.5pt; color: #c3d3e1; max-width: 3.5in; margin-top: 10pt; line-height: 1.45; }
+.cover .bottom { position: absolute; left: 0.75in; right: 0.75in; bottom: 0.6in; display: flex; justify-content: space-between; align-items: flex-end; }
+.cover .doc { font-size: 8pt; line-height: 1.6; color: #9fb4c6; }
+.cover .doc b { color: #fff; }
+.logo { font: italic 400 21pt var(--serif); color: #fff; text-align: right; line-height: 1; }
+.logo small { display: block; font: 400 7.5pt var(--sans); font-style: normal; letter-spacing: 0.08em; color: var(--accent); margin-top: 5pt; }
+.back { background: var(--night); color: #d7e3ee; }
+.back h2 { color: #fff; }
+.back a { color: var(--accent); text-decoration: none; }
+.back .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20pt; border-top: 0.5pt solid #2a3646; padding-top: 12pt; }
+.back h3 { color: #fff; margin-top: 0; }
+.qr { background: #fff; padding: 7pt; width: 1.3in; height: 1.3in; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.back .fine { position: absolute; left: 0.75in; right: 0.75in; bottom: 0.6in; display: flex; justify-content: space-between; align-items: flex-end; font-size: 7.5pt; line-height: 1.6; color: #7f93a6; }
+
+/* screenshots and code (SOP-03) */
+.fig.ui img { aspect-ratio: auto; object-fit: contain; border: 0.5pt solid var(--rule); }
+pre { font: 400 7.6pt/1.45 ui-monospace, 'SF Mono', Menlo, monospace; background: #f3f5f7; border-left: 2pt solid var(--rule); padding: 6pt 8pt; margin: 4pt 0 8pt; white-space: pre-wrap; word-break: break-word; }
+code { font: 400 8.2pt ui-monospace, 'SF Mono', Menlo, monospace; background: #f3f5f7; padding: 0 2pt; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.cover .shot { position: absolute; left: 0.75in; right: 0.75in; top: 4.2in; border: 0.5pt solid #2a3646; }
+.cover .shot img { display: block; width: 100%; }
+.diagram { width: 100%; margin: 6pt 0 10pt; }
