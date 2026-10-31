@@ -64,3 +64,14 @@ def test_autofocus_blocked(sem):
 def test_errors(sem):
     with pytest.raises(Exception):
         sem.set(bogus=1)
+
+
+def test_megalibrary_tkd(sem):
+    assert sem.library()["particles"] == [1000, 1000]
+    sem.goto(375, 375)
+    t = sem.particle(375, 375)
+    sem.set(stage_um=t["center_um"], mode="tkd", fov_um=0.04, map_size=24, foil_nm=40)
+    assert sem.state()["specimen"] == "lib"
+    a = sem.acquire()
+    e = a["euler_phi1"]
+    assert np.isfinite(e).sum() > 20  # the particle indexes; the bare membrane does not

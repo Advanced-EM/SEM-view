@@ -1,5 +1,6 @@
 // SEM physics: materials, electron–solid interaction, probe formation, crystallography and specimens.
 // Units: lengths in µm unless noted (nm where stated), energies in keV, angles in radians.
+import * as ML from './megalibrary.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const DEG = Math.PI / 180;
@@ -86,7 +87,13 @@ export const MAT = {
   W: { name: 'Tungsten', Z: 74, A: 183.8, rho: 19.3, dmax: 1.4, Emax: 0.65, cond: true, comp: { W: 1 }, color: '#e6e6f0' },
   Al: { name: 'Aluminium', Z: 13, A: 26.98, rho: 2.7, dmax: 0.97, Emax: 0.3, cond: true, comp: { Al: 1 }, cryst: 'fcc', a: 4.05, color: '#aab6c4' },
   Pt: { name: 'Platinum (FIB cap)', Z: 78, A: 195.1, rho: 21.45, dmax: 1.6, Emax: 0.72, cond: true, comp: { Pt: 1 }, color: '#f2f2f2' },
+  // a 10 nm membrane transmits nearly all of the beam and bleeds its charge to the silicon frame
+  SiN: { name: 'Silicon nitride membrane', Z: 10.4, A: 20.0, rho: 3.1, dmax: 1.9, Emax: 0.4, cond: true, comp: { Si: 0.43, N: 0.57 }, color: '#4b5a6c' },
 };
+// Material keys in a fixed order (sample grids store an index). Materials can be added later (each
+// megalibrary particle domain is its own alloy), so the list grows and indices stay valid.
+export const MKEYS = Object.keys(MAT);
+export function matIndex(key) { const i = MKEYS.indexOf(key); return i >= 0 ? i : MKEYS.push(key) - 1; }
 export const J = (Z) => (9.76 * Z + 58.5 * Math.pow(Z, -0.19)) * 1e-3; // mean ionisation potential, keV
 
 // Backscatter coefficient (Reuter) and its tilt dependence (Arnal): η(θ) = 1/(1+cos θ)^(9/√Z)
@@ -157,8 +164,13 @@ export const XLINES = [
   { el: 'Au', line: 'Lα', E: 9.713, Ec: 11.919, w: 1, y: 0.9 },
   { el: 'Pt', line: 'Mα', E: 2.048, Ec: 2.122, w: 1, y: 0.7 },
   { el: 'Pt', line: 'Lα', E: 9.442, Ec: 11.564, w: 1, y: 0.9 },
+  { el: 'Ag', line: 'Lα', E: 2.984, Ec: 3.351, w: 1, y: 0.8 },
+  { el: 'Ag', line: 'Lβ', E: 3.151, Ec: 3.524, w: 0.55, y: 0.8 },
+  { el: 'Co', line: 'Lα', E: 0.776, Ec: 0.779, w: 0.25, y: 0.5 },
+  { el: 'Co', line: 'Kα', E: 6.930, Ec: 7.709, w: 1, y: 1.05 },
+  { el: 'Co', line: 'Kβ', E: 7.649, Ec: 7.709, w: 0.13, y: 1.05 },
 ];
-export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b', Au: '#f0c95a', Ga: '#7fb0d8', N: '#b7a6ff' };
+export const EL_COLOR = { C: '#9aa4b2', O: '#ff7d7d', Al: '#ffc15e', Si: '#5cb4ff', Ni: '#5fe3a8', Cu: '#ff9a4d', W: '#c99bff', Sn: '#e2e8f0', Pt: '#f0e36b', Au: '#f0c95a', Ga: '#7fb0d8', N: '#b7a6ff', Ag: '#d9e2ec', Co: '#6f8cff' };
 export const detEff = (E) => Math.exp(-Math.pow(0.35 / E, 2)) * (1 - Math.exp(-40 / Math.pow(E, 2.4)) * 0) * Math.exp(-E / 60);
 // EDS resolution (keV FWHM) at energy E: electronic noise plus Fano statistics, set by the FWHM at Mn Kα (eV)
 export const edsFWHM = (E, mn = 128) => { const fano = 2.355 * 2.355 * 0.115 * 3.8, noise2 = Math.max(100, mn * mn - fano * 5899); return Math.sqrt(noise2 + fano * E * 1000) / 1000; };
@@ -368,6 +380,42 @@ function twinned(x, y, g, seed, cell, prob) {
   return band % 3 === 0 ? { O: twinOf(O), t: 1 } : { O, t: 0 };
 }
 
+// Nanoparticle megalibrary (megalibrary.js, the same file and so the same particles as TEM-view): a
+// million alloy particles, 15–25 nm, on a 1 µm grid on a 10 nm Si₃N₄ membrane, ideal for TKD. Every particle
+// domain is its own alloy, registered as a material the first time the beam meets it.
+const ELEM = { Au: [79, 196.97, '#f0c95a'], Ag: [47, 107.87, '#d9e2ec'], Cu: [29, 63.55, '#e0915a'], Co: [27, 58.93, '#6f8cff'], Ni: [28, 58.69, '#9fb4c7'] };
+function libMat(i, j, k, d) {
+  const key = `lib:${i},${j}:${k}`;
+  if (!MAT[key]) {
+    let Z = 0, A = 0, top = null;
+    for (const el in d.comp) { Z += d.comp[el] * ELEM[el][0]; A += d.comp[el] * ELEM[el][1]; if (!top || d.comp[el] > d.comp[top]) top = el; }
+    const name = Object.entries(d.comp).map(([el, f]) => `${el}${Math.round(f * 100)}`).join('');
+    MAT[key] = { name: `${name} (particle ${i}, ${j})`, Z, A, rho: (4 * A) / (0.6022 * d.a_A ** 3), dmax: 1.35, Emax: 0.6, cond: true, comp: d.comp, cryst: 'fcc', a: d.a_A, color: ELEM[top][2] };
+    matIndex(key);
+  }
+  return key;
+}
+function libSample(x, y, res = 0) {
+  const ij = ML.nearest(x, y), none = { h: 0, mat: 'SiN', grain: -1, ori: null };
+  if (!ij) return none;
+  const p = ML.particle(ij[0], ij[1]);
+  if (!p.present) return none;
+  const u = (x - p.x_um) * 1000, v = (y - p.y_um) * 1000; // nm from the particle centre
+  const s = p.satellite;
+  if (s) {
+    const r = s.d_nm / 2, d2 = (u - s.dx_nm) ** 2 + (v - s.dy_nm) ** 2;
+    if (d2 < r * r) return { h: (r + Math.sqrt(r * r - d2)) / 1000, mat: libMat(p.i, p.j, 9, s), grain: (p.i * 1000 + p.j) * 4 + 3, ori: s.O };
+  }
+  let r = ML.rho(p, u, v);
+  // a particle smaller than a pixel still scatters into it: show it at least a pixel wide, faintly
+  const px = (res * 1000) / 2, R = Math.max(p.a_nm, p.b_nm);
+  if (r >= 1 && px > R && Math.hypot(u, v) < px) r = 0.95;
+  if (r >= 1) return none;
+  const k = ML.domainAt(p, u, v, 0), d = p.domains[k];
+  return { h: (p.c_nm * (1 + Math.sqrt(1 - r * r))) / 1000, mat: libMat(p.i, p.j, k, d), grain: (p.i * 1000 + p.j) * 4 + k, ori: d.O };
+}
+const lib0 = ML.particle(0, 0);
+
 export const SPECIMENS = {
   sn: {
     id: 'sn', name: 'Tin spheres on carbon', short: 'Sn on C', fov: 20, fovMin: 0.3, fovMax: 400,
@@ -512,6 +560,13 @@ export const SPECIMENS = {
       return out('SiO2');
     },
     phases: ['Cu', 'Si'],
+  },
+  lib: {
+    id: 'lib', name: 'Nanoparticle megalibrary (1000 × 1000 alloy particles)', short: 'Megalibrary', fov: 0.08, fovMin: 0.02, fovMax: 400, center: [lib0.x_um, lib0.y_um],
+    note: 'A million alloy nanoparticles (Au, Ag, Cu, Co, Ni; 15–25 nm) on a 1 µm grid on a 10 nm silicon-nitride membrane, written by a 10 × 10 polymer-pen array: the ink changes across the pens, the dot size along each 100 × 100 block. Noble-metal and Co–Ni particles segregate into two-crystal heterostructures; every particle has its own orientation. The same library is in TEM-view. On the membrane, TKD maps single particles.',
+    sample: libSample, thin: 0.03, // µm: membrane plus particle
+    phases: [],
+    indexes: (mat) => mat.startsWith('lib:'), // every particle domain is an fcc phase the indexer knows
   },
 };
 

@@ -25,7 +25,7 @@ const UI_ONLY = ['speed', 'showLabels', 'showElectrons', 'showGlass', 'autoRotat
 export function specState(S, sim, v) {
   if (!P.SPECIMENS[v]) return false;
   S.spec = v;
-  S.fov = P.SPECIMENS[v].fov; S.cx = 0; S.cy = 0; S.edsSel = 'all';
+  S.fov = P.SPECIMENS[v].fov; [S.cx, S.cy] = P.SPECIMENS[v].center ?? [0, 0]; S.edsSel = 'all';
   sim.invalidate('spec');
   return true;
 }
@@ -35,9 +35,9 @@ export function modeState(S, sim, m) {
   if (m === S.mode || !MODES.includes(m)) return false;
   const prev = S.mode;
   S.mode = m;
-  const quietSpec = (v) => { S.spec = v; S.fov = P.SPECIMENS[v].fov; S.cx = 0; S.cy = 0; S.edsSel = 'all'; };
+  const quietSpec = (v) => { S.spec = v; S.fov = P.SPECIMENS[v].fov; [S.cx, S.cy] = P.SPECIMENS[v].center ?? [0, 0]; S.edsSel = 'all'; };
   if (m === 'ebsd') { if (!['ni', 'chip'].includes(S.spec)) quietSpec('ni'); S.tilt = 70; S.kV = Math.max(S.kV, 20); S.current = Math.max(S.current, 3000); S.wd = Math.max(S.wd, 14); }
-  if (m === 'tkd') { if (S.spec !== 'chip') quietSpec('chip'); S.tilt = 0; S.kV = Math.max(S.kV, 30); S.current = Math.max(S.current, 2000); S.wd = Math.min(S.wd, 5); }
+  if (m === 'tkd') { if (!['chip', 'lib'].includes(S.spec)) quietSpec('chip'); S.tilt = 0; S.kV = Math.max(S.kV, 30); S.current = Math.max(S.current, 2000); S.wd = Math.min(S.wd, 5); }
   if (m === 'eds') { S.kV = Math.max(S.kV, 15); S.current = Math.max(S.current, 1000); if (prev === 'ebsd') S.tilt = 0; }
   // CL: a luminescent specimen, the parabolic mirror inserted (it needs ~10 mm working distance), nanoamps
   if (m === 'cl') { if (!P.SPECIMENS[S.spec].luminescent || S.spec === 'chip') quietSpec('gan'); S.tilt = 0; S.wd = 10; S.kV = clamp(S.kV, 3, 15); S.current = Math.max(S.current, 1000); if (S.spec === 'ni') { [S.cx, S.cy] = P.SPECIMENS.ni.inclusion(); S.fov = 18; } }

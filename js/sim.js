@@ -3,7 +3,7 @@ import * as P from './physics.js';
 
 const { clamp, mat3, DEG } = P;
 const SP = P.SPECIMENS;
-const MKEYS = Object.keys(P.MAT);
+const { MKEYS } = P;
 
 // separable Gaussian blur (edge-clamped) returning a new array
 export function blurred(a, w, h, sx, sy = sx) {
@@ -77,12 +77,12 @@ export class Sim {
     const key = [this.S.spec, n, fov, cx, cy, asp, sh].join('|');
     if (this._grid?.key === key) return this._grid;
     const spec = this.spec, px = fov / n;
-    const H = new Float32Array(n * n), M = new Uint8Array(n * n), ori = new Array(n * n);
+    const H = new Float32Array(n * n), M = new Uint16Array(n * n), ori = new Array(n * n);
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         const ys = (j + 0.5 - n / 2) * px * asp, x = cx + (i + 0.5 - n / 2) * px + sh * ys, y = cy - ys;
         const s = spec.sample(x, y, px), k = j * n + i;
-        H[k] = s.h; M[k] = MKEYS.indexOf(s.mat); ori[k] = s.ori;
+        H[k] = s.h; M[k] = P.matIndex(s.mat); ori[k] = s.ori;
       }
     return (this._grid = { H, M, ori, px, n, key });
   }
@@ -98,7 +98,8 @@ export class Sim {
     const cnt = new Map();
     for (let i = 0; i < n * n; i += 7) cnt.set(M[i], (cnt.get(M[i]) || 0) + 1);
     const dom = P.MAT[MKEYS[[...cnt.entries()].sort((a, b) => b[1] - a[1])[0][0]]];
-    const Rko = P.rangeKO(dom.rho ? dom : P.MAT.Ni, E); // µm
+    // a thin specimen (a membrane) lets the beam through: the electrons only spread within its thickness
+    const Rko = Math.min(P.rangeKO(dom.rho ? dom : P.MAT.Ni, E), this.spec.thin ?? Infinity); // µm
     const sBSE = (0.25 * Rko) / px, sEdge = Math.max(0.6, (0.15 * Rko) / px);
     const Hb = P.clamp(sEdge, 0, 60) > 0.35 ? blurred(H, n, n, Math.min(60, sEdge)) : H;
     const se1 = new Float32Array(n * n), bse = new Float32Array(n * n), nxA = new Float32Array(n * n), nyA = new Float32Array(n * n), face = new Float32Array(n * n), edge = new Float32Array(n * n);
@@ -355,7 +356,7 @@ export class Sim {
     const top = grains[0];
     const cryst = grains.filter((g) => g.cryst);
     const pat = this.simPattern(grains, N);
-    if (!cryst.length || !this.spec.phases.includes(cryst[0].mat)) return { pat, res: null, truth: top, phase: top.mat };
+    if (!cryst.length || !(this.spec.indexes?.(cryst[0].mat) ?? this.spec.phases.includes(cryst[0].mat))) return { pat, res: null, truth: top, phase: top.mat };
     const H = this.hough(pat, N, K);
     const res = this.index(H.peaks, cryst[0].mat);
     const bc = H.peaks.reduce((s, p) => s + p.h, 0) / Math.max(1, H.peaks.length);
@@ -407,7 +408,7 @@ export class Sim {
     for (let k = 0; k < n * n; k += 5) cnt.set(g.M[k], (cnt.get(g.M[k]) || 0) + 1);
     const dom = P.MAT[MKEYS[[...cnt.entries()].sort((a, b) => b[1] - a[1])[0][0]]];
     const mainLine = P.XLINES.filter((l) => dom.comp[l.el] && E0 > l.Ec * 1.1).sort((a, b) => b.Ec - a.Ec)[0];
-    const Rx = mainLine ? P.rangeX(dom, E0, mainLine.Ec) : P.rangeKO(dom, E0) * 0.6;
+    const Rx = Math.min(mainLine ? P.rangeX(dom, E0, mainLine.Ec) : P.rangeKO(dom, E0) * 0.6, this.spec.thin ?? Infinity);
     const sig = (0.35 * Rx) / g.px;
     const maps = {};
     for (const e of syms) {

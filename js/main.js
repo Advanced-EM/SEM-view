@@ -43,7 +43,7 @@ const IMG = 'se inlens bse';
 
 const CONTROLS = [
   { sec: 'The specimen' },
-  { chips: 'spec', opts: [['sn', 'Tin on carbon'], ['ni', 'Polycrystalline Ni'], ['chip', 'Chip cross-section'], ['grid', 'Cross grating'], ['gan', 'GaN / InGaN LED']] },
+  { chips: 'spec', opts: [['sn', 'Tin on carbon'], ['ni', 'Polycrystalline Ni'], ['chip', 'Chip cross-section'], ['grid', 'Cross grating'], ['gan', 'GaN / InGaN LED'], ['lib', 'NP megalibrary']] },
   { slider: 'fov', label: 'Field of view', dyn: () => ({ min: sim.spec.fovMin, max: sim.spec.fovMax }), log: true, fmt: (v) => `${R2.fmtLen(v)}  ×${Math.round(127000 / v).toLocaleString()}`, note: 'Drag the image to move the stage; scroll to zoom.' },
   { slider: 'tilt', label: 'Stage tilt', min: 0, max: 72, step: 1, fmt: (v) => `${v}°`, ends: ['flat', '', 'EBSD 70°'] },
   { toggles: [['coated', 'Carbon coating']] },
@@ -235,7 +235,7 @@ function setMode(m) {
 }
 function cycleMode(d) { const i = MODES.findIndex((m) => m[0] === S.mode); setMode(MODES[(i + d + MODES.length) % MODES.length][0]); }
 function moveStage(dx, dy) { S.cx += dx; S.cy += dy; sim.invalidate('stage'); }
-const quietSpec = (v) => { S.spec = v; S.fov = P.SPECIMENS[v].fov; S.cx = 0; S.cy = 0; S.edsSel = 'all'; };
+const quietSpec = (v) => { S.spec = v; S.fov = P.SPECIMENS[v].fov; [S.cx, S.cy] = P.SPECIMENS[v].center ?? [0, 0]; S.edsSel = 'all'; };
 function blockedMsg(id, text) { scn.recorder.event('blocked', { id }); flashChange('Not in this task', text); }
 function flashChange(title, html) { const box = $('#change'); box.hidden = false; box.innerHTML = `<small>${title}</small><p>${html}</p>`; box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); }
 

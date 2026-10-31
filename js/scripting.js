@@ -12,6 +12,7 @@ import { SCENARIOS } from './scenarios.js';
 import { MODES, settle, autofocusTarget, SEG_PRESETS } from './ops.js';
 import { SESSION_KEYS } from './state.js';
 import { PRESETS, FIELDS, newProfile } from './profile.js';
+import * as ML from './megalibrary.js';
 
 export const SCRIPT_API = 1;
 const SPECS = Object.keys(P.SPECIMENS);
@@ -170,8 +171,23 @@ export class ScriptCore {
   }
 
   // one entry point for remote callers (desktop Python): only these names can be called
+  // ---------------------------------------------------------------- the nanoparticle megalibrary (specimen "lib", shared with TEM-view)
+  library() { return ML.layout(); }
+  // drive to particle (i, j)'s grid node; in the realistic view the stage lands within ~25 nm of it
+  goto({ i, j } = {}) {
+    this.guard();
+    if (!ML.inLibrary(i, j)) throw new Error(`particle (${i}, ${j}) is outside the library: i and j run from 0 to ${ML.LIB.n - 1}`);
+    if (this.S.spec !== 'lib') this.run({ op: 'spec', v: 'lib' });
+    const err = this.S.clarity === 'real' ? 0.025 : 0, g = () => Math.sqrt(-2 * Math.log(Math.random() + 1e-12)) * Math.cos(2 * Math.PI * Math.random());
+    this.run({ op: 'stageTo', x: i * ML.LIB.pitch_um + err * g(), y: j * ML.LIB.pitch_um + err * g() });
+    this.h.refresh?.();
+    return { stage_um: [+this.S.cx.toFixed(5), +this.S.cy.toFixed(5)], nearest_particle: ML.nearest(this.S.cx, this.S.cy) };
+  }
+  // the true particle, for scoring a screen (Euler angles in the same Bunge convention as the TKD map)
+  particle({ i, j } = {}) { const t = ML.truth(i, j); if (!t) throw new Error(`particle (${i}, ${j}) is outside the library`); return t; }
+
   call(name, args = {}) {
-    if (!['info', 'state', 'set', 'command', 'autofocus', 'profile', 'acquire', 'analyze', 'step', 'challenge', 'score', 'reveal', 'end_challenge'].includes(name)) throw new Error(`unknown call ${name}`);
+    if (!['info', 'state', 'set', 'command', 'autofocus', 'profile', 'acquire', 'analyze', 'step', 'challenge', 'score', 'reveal', 'end_challenge', 'library', 'goto', 'particle'].includes(name)) throw new Error(`unknown call ${name}`);
     return this[name](args ?? {});
   }
 }

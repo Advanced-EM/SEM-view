@@ -21,9 +21,10 @@ const SPECS = [
   ['sn', /\b(tin|sn|resolution standard|spheres)\b/],
   ['ni', /\b(nickel|ni|polycrystal(line)?|grains)\b/],
   ['chip', /\b(chip|cross\s*-?\s*section|interconnects?|copper lines|lamella)\b/],
+  ['lib', /\b(mega\s*-?\s*librar(y|ies)|nanoparticle\s*librar(y|ies)|library)\b/],
 ];
 const MODE_NAMES = { se: 'SE (Everhart–Thornley)', inlens: 'in-lens SE', bse: 'BSE', ebsd: 'EBSD', tkd: 'TKD', eds: 'EDS', mc: 'interaction volume (Monte Carlo)', cl: 'cathodoluminescence' };
-const SPEC_NAMES = { sn: 'tin on carbon', ni: 'polycrystalline nickel', chip: 'the chip cross-section', grid: 'the 463 nm cross grating', gan: 'GaN with InGaN quantum wells' };
+const SPEC_NAMES = { sn: 'tin on carbon', ni: 'polycrystalline nickel', chip: 'the chip cross-section', grid: 'the 463 nm cross grating', gan: 'GaN with InGaN quantum wells', lib: 'the nanoparticle megalibrary' };
 
 // "minus fifty two point five" → "-52.5"; digits pass through
 const SMALL = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };

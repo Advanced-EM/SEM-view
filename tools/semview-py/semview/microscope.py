@@ -115,6 +115,20 @@ class Microscope:
         """Advance the simulation n frames of 50 ms (EDS counts accumulate, maps fill in, the wobbler swings)."""
         return self._t.call("step", {"n": int(n)})
 
+    # -- the nanoparticle megalibrary (specimen="lib"; the same particles as in TEM-view)
+    def library(self) -> dict:
+        """The megalibrary's layout: 1000 × 1000 particles on a 1 µm grid, the pen blocks, the elements."""
+        return self._t.call("library")
+
+    def goto(self, i: int, j: int) -> dict:
+        """Drive the stage to particle (i, j)'s grid node (loads the library if needed). Re-centre on the
+        particle before mapping: it sits within ~60 nm of its node, and a realistic stage misses by ~25 nm."""
+        return self._t.call("goto", {"i": int(i), "j": int(j)})
+
+    def particle(self, i: int, j: int) -> dict:
+        """The true particle (i, j): composition, size, phase, domains with Bunge Euler angles. For scoring."""
+        return self._t.call("particle", {"i": int(i), "j": int(j)})
+
     # -- challenges: a training task's hidden misalignment, for testing automation
     def challenge(self, id: str, seed: int | None = None) -> dict:
         """Start a training task as a challenge: sem-focus-stig, sem-aperture-align, sem-insulator or
