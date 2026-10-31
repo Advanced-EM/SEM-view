@@ -7,6 +7,7 @@ import { renderComponent } from './components.js';
 import { defaultState, SESSION_KEYS } from './state.js';
 import { PRESETS, newProfile, sanitizeProfile } from './profile.js';
 import * as O from './ops.js';
+import * as ML from './megalibrary.js';
 import { analyze } from './analyze.js';
 import { collectData, toNpz } from './export.js';
 import { Acquisitions } from './acquire.js';
@@ -44,6 +45,8 @@ const IMG = 'se inlens bse';
 const CONTROLS = [
   { sec: 'The specimen' },
   { chips: 'spec', opts: [['sn', 'Tin on carbon'], ['ni', 'Polycrystalline Ni'], ['chip', 'Chip cross-section'], ['grid', 'Cross grating'], ['gan', 'GaN / InGaN LED'], ['lib', 'NP megalibrary']] },
+  { pFn: () => { const ij = ML.nearest(S.cx, S.cy); return `Stage at (${S.cx.toFixed(3)}, ${S.cy.toFixed(3)}) µm: ${ij ? `particle (${ij[0]}, ${ij[1]}) of 1000 × 1000, pen block (${Math.floor(ij[0] / 100)}, ${Math.floor(ij[1] / 100)}). ${ML.describe(ML.particle(...ij))}` : 'outside the library'}. Map it in TKD; script a screen with goto(i, j) in Python.`; }, show: () => S.spec === 'lib' },
+  { buttons: [['libPrev', '← Particle'], ['libNext', 'Particle →'], ['libRand', 'Random particle'], ['libAuCo', 'Au–Co, phase-separated'], ['libChip', 'Whole chip']], show: () => S.spec === 'lib' },
   { slider: 'fov', label: 'Field of view', dyn: () => ({ min: sim.spec.fovMin, max: sim.spec.fovMax }), log: true, fmt: (v) => `${R2.fmtLen(v)}  ×${Math.round(127000 / v).toLocaleString()}`, note: 'Drag the image to move the stage; scroll to zoom.' },
   { slider: 'tilt', label: 'Stage tilt', min: 0, max: 72, step: 1, fmt: (v) => `${v}°`, ends: ['flat', '', 'EBSD 70°'] },
   { toggles: [['coated', 'Carbon coating']] },
@@ -179,7 +182,7 @@ function renderChips(b) {
 function refresh() {
   document.body.dataset.mode = S.mode;
   for (const b of bound) {
-    const vis = !b.el.dataset.modes || b.el.dataset.modes.split(' ').includes(S.mode);
+    const vis = (!b.el.dataset.modes || b.el.dataset.modes.split(' ').includes(S.mode)) && (!b.c.show || b.c.show());
     b.el.hidden = !vis;
     if (!vis) continue;
     if (b.input) {
@@ -260,6 +263,19 @@ function action(id) {
   if (id === 'remap') { sim.stale.map = 1; sim.version++; }
   if (id === 'remc') { sim.stale.mc = 1; sim.version++; }
   if (id === 'autofocus') autofocus();
+  if (id.startsWith('lib') && S.spec === 'lib') {
+    const [i, j] = ML.nearest(S.cx, S.cy) ?? [0, 0], n = ML.LIB.n;
+    // libAuCo: a particle in the block of the Au–Co pen, where every particle is phase-separated; this one's
+    // crystals are not epitaxial, so TKD maps them as two grains
+    const to = { libPrev: [Math.max(0, i - 1), j], libNext: [Math.min(n - 1, i + 1), j], libRand: [Math.floor(Math.random() * n), Math.floor(Math.random() * n)], libAuCo: [950, 50] }[id];
+    if (to) {
+      const p = ML.particle(...to);
+      S.cx = p.x_um; S.cy = p.y_um; sim.invalidate('stage');
+      if (S.fov > 2) set('fov', sim.spec.fov);
+    }
+    if (id === 'libChip') { S.cx = S.cy = ((n - 1) / 2) * ML.LIB.pitch_um; sim.invalidate('stage'); set('fov', sim.spec.fovMax); }
+    refresh(); explain('stage');
+  }
   if (id === 'training') openTraining();
   if (id === 'replayFile') $('#fileReplay').click();
   if (id === 'lastSession') { if (scn.lastSession) scn.downloadSession(scn.lastSession); else flashChange('No recorded session yet', 'Run a training task with recording on, then download it here.'); }
@@ -320,6 +336,13 @@ function renderInfo() {
   $('#infoStats').innerHTML = inf.stats.map(([k, v, s]) => `<div><small>${k}</small><b>${v}</b><span>${s}</span></div>`).join('');
 }
 const EXTRA = {
+  stage: () => {
+    if (S.spec !== 'lib') return null;
+    const ij = ML.nearest(S.cx, S.cy), p = ij && ML.particle(...ij);
+    // what TKD will show: a heterostructure maps as two grains unless its crystals are epitaxial
+    const tkd = !p?.present ? '' : p.phase === 'heterostructure' ? (p.interface.epitaxial ? ' The two crystals grew cube-on-cube, so in TKD they share one orientation and the map alone does not show the split.' : ' In TKD the two crystals map as two grains with different orientations.') : p.phase === 'twinned' ? ' In TKD the two twins map 60° apart about <111>.' : ' In TKD it maps as one crystal.';
+    return ['Stage', `Stage at <b>(${S.cx.toFixed(3)}, ${S.cy.toFixed(3)}) µm</b>${ij ? `, over particle <b>(${ij[0]}, ${ij[1]})</b>: ${ML.describe(p)}.` : ', outside the library.'}${tkd}`];
+  },
   profile: () => ['Instrument profile', `${esc(S.profile.name)}: brightness ${S.profile.Br.toExponential(1)} A/m²·sr·V, energy spread ${S.profile.dE} eV, Cs ${S.profile.CsK} mm and Cc ${S.profile.CcK} mm at 4 mm. The probe-size budget (source, Cs, Cc, diffraction) now follows this gun and lens.`],
   calibrated: () => ['Calibrated', 'The instrument profile now carries what was measured from data. Every image, map and spectrum is simulated with it, and it is saved with the session.'],
   session: () => ['Session saved', 'The complete state, profile and calibrations as JSON. Load it here, or replay it headless: node tools/headless.mjs --session file.json.'],
@@ -695,7 +718,7 @@ function wire() {
     S.cx = drag.cx - (e.clientX - drag.x) * sc; S.cy = drag.cy + (e.clientY - drag.y) * sc; drag.moved = true;
     if (!mapMode()) sim.invalidate('stage');
   });
-  const end = () => { if (drag?.moved) { if (mapMode()) sim.invalidate('stage'); explain(null); } drag = null; };
+  const end = () => { if (drag?.moved) { if (mapMode()) sim.invalidate('stage'); refresh(); explain(null); } drag = null; };
   mainCv.addEventListener('pointerup', end); mainCv.addEventListener('pointercancel', end);
   mainCv.addEventListener('pointerleave', () => { if (hoverIdx >= 0) { hoverIdx = -1; sim.version++; } });
   mainCv.addEventListener('wheel', (e) => { e.preventDefault(); set('fov', S.fov * Math.pow(1.0015, e.deltaY), 'fov'); }, { passive: false });
