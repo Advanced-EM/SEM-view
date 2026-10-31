@@ -80,25 +80,48 @@ const frac = (comp, els) => els.reduce((s, el) => s + (comp[el] || 0), 0);
 function planeFor(f) { let lo = -1, hi = 1; for (let k = 0; k < 40; k++) { const t = (lo + hi) / 2; if (((1 + t) ** 2 * (2 - t)) / 4 < f) lo = t; else hi = t; } return (lo + hi) / 2; }
 
 // ---------------------------------------------------------------- one particle
+const inks = new Map();
+const inkOf = (pi, pj) => { const k = pi * LIB.pens + pj; if (!inks.has(k)) inks.set(k, penComposition(pi, pj)); return inks.get(k); };
+// where a particle sits, whether its dot formed one, its size and in-plane shape (cheap: no crystal)
+function place(i, j) {
+  const pi = Math.floor(i / LIB.block), pj = Math.floor(j / LIB.block), bi = i % LIB.block;
+  // where the particle formed inside its polymer dot
+  const ox = Math.max(-60, Math.min(60, 20 * gaussR(i, j, 1))), oy = Math.max(-60, Math.min(60, 20 * gaussR(i, j, 2)));
+  // size grows with dwell time along x in each pen's block; shape: rounded, a little elongated or faceted
+  const [d0, d1] = LIB.d_nm, d = Math.max(d0, Math.min(d1, d0 + ((d1 - d0) * bi) / (LIB.block - 1) + 0.6 * gaussR(i, j, 4)));
+  const asp = 1 + 0.3 * rnd(i, j, 5) ** 2, sq = rnd(i, j, 6) < 0.35 ? 2.5 + rnd(i, j, 7) : 2;
+  return { pi, pj, ink: inkOf(pi, pj), x_um: i * LIB.pitch_um + ox / 1000, y_um: j * LIB.pitch_um + oy / 1000, present: rnd(i, j, 3) > 0.015, d, asp, sq };
+}
+function scatter(i, j, ink) {
+  const comp = {};
+  for (const el in ink) comp[el] = ink[el] * Math.exp(0.18 * gaussR(i, j, 20 + LIB.elements.indexOf(el)));
+  return comp;
+}
+// A particle as a low-magnification view needs it: position (µm), volume (nm³), composition and lattice
+// parameter, without building its crystal (fast enough for all million particles). The volume of the
+// superellipse cap is (4/3)·c·area; the superellipse's area, 4ab·Γ(1 + 1/e)²/Γ(1 + 2/e), is fitted to within 1 %.
+export function sketch(i, j) {
+  const { x_um, y_um, present, d, sq, ink } = place(i, j);
+  const c = scatter(i, j, ink);
+  let s = 0;
+  for (const el in c) s += c[el];
+  for (const el in c) c[el] /= s;
+  const area = (d / 2) ** 2 * (Math.PI + 0.55 * (sq - 2) - 0.13 * (sq - 2) ** 2);
+  return { x_um, y_um, present, d_nm: d, vol_nm3: (4 / 3) * 0.43 * d * area, comp: c, a_A: latticeA(c) };
+}
+// the ink of the pen that wrote particle (i, j)
+export const sketchInk = (i, j) => inkOf(Math.floor(i / LIB.block), Math.floor(j / LIB.block));
 const cache = new Map();
 export function inLibrary(i, j) { return Number.isInteger(i) && Number.isInteger(j) && i >= 0 && j >= 0 && i < LIB.n && j < LIB.n; }
 export function particle(i, j) {
   if (!inLibrary(i, j)) return null;
   const key = i * LIB.n + j;
   if (cache.has(key)) return cache.get(key);
-  const pi = Math.floor(i / LIB.block), pj = Math.floor(j / LIB.block), bi = i % LIB.block;
-  const ink = penComposition(pi, pj);
-  // where the particle formed inside its polymer dot
-  const off = [Math.max(-60, Math.min(60, 20 * gaussR(i, j, 1))), Math.max(-60, Math.min(60, 20 * gaussR(i, j, 2)))];
-  const p = { i, j, pen: [pi, pj], x_um: i * LIB.pitch_um + off[0] / 1000, y_um: j * LIB.pitch_um + off[1] / 1000, present: rnd(i, j, 3) > 0.015 };
-  // size grows with dwell time along x in each pen's block; shape: rounded, a little elongated or faceted
-  const [d0, d1] = LIB.d_nm, d = Math.max(d0, Math.min(d1, d0 + ((d1 - d0) * bi) / (LIB.block - 1) + 0.6 * gaussR(i, j, 4)));
-  const asp = 1 + 0.3 * rnd(i, j, 5) ** 2, sq = rnd(i, j, 6) < 0.35 ? 2.5 + rnd(i, j, 7) : 2;
+  const { pi, pj, ink, x_um, y_um, present, d, asp, sq } = place(i, j);
+  const p = { i, j, pen: [pi, pj], x_um, y_um, present }, [d0, d1] = LIB.d_nm;
   Object.assign(p, { d_nm: +d.toFixed(2), a_nm: +((d / 2) * Math.sqrt(asp)).toFixed(3), b_nm: +(d / 2 / Math.sqrt(asp)).toFixed(3), c_nm: +(0.43 * d).toFixed(3), shape_exp: +sq.toFixed(3), rot: rnd(i, j, 8) * Math.PI });
   // composition: the pen's ink, scattered by the finite number of atoms in one dot
-  const comp = {};
-  for (const el in ink) comp[el] = ink[el] * Math.exp(0.18 * gaussR(i, j, 20 + LIB.elements.indexOf(el)));
-  p.comp = normComp(comp);
+  p.comp = normComp(scatter(i, j, ink));
   // crystal domains
   const O = randomOri(rnd(i, j, 9), rnd(i, j, 10), rnd(i, j, 11));
   const fn = frac(p.comp, NOBLE), fm = frac(p.comp, MAG);

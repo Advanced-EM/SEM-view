@@ -384,20 +384,34 @@ function twinned(x, y, g, seed, cell, prob) {
 // million alloy particles, 15–25 nm, on a 1 µm grid on a 10 nm Si₃N₄ membrane, ideal for TKD. Every particle
 // domain is its own alloy, registered as a material the first time the beam meets it.
 const ELEM = { Au: [79, 196.97, '#f0c95a'], Ag: [47, 107.87, '#d9e2ec'], Cu: [29, 63.55, '#e0915a'], Co: [27, 58.93, '#6f8cff'], Ni: [28, 58.69, '#9fb4c7'] };
+// an alloy (composition, fcc lattice parameter Å) as a material
+function alloyMat(comp, a_A, label) {
+  let Z = 0, A = 0, top = null;
+  for (const el in comp) { Z += comp[el] * ELEM[el][0]; A += comp[el] * ELEM[el][1]; if (!top || comp[el] > comp[top]) top = el; }
+  const name = Object.entries(comp).map(([el, f]) => `${el}${Math.round(f * 100)}`).join('');
+  return { name: `${name} (${label})`, Z, A, rho: (4 * A) / (0.6022 * a_A ** 3), dmax: 1.35, Emax: 0.6, cond: true, comp, cryst: 'fcc', a: a_A, color: ELEM[top][2] };
+}
 function libMat(i, j, k, d) {
   const key = `lib:${i},${j}:${k}`;
-  if (!MAT[key]) {
-    let Z = 0, A = 0, top = null;
-    for (const el in d.comp) { Z += d.comp[el] * ELEM[el][0]; A += d.comp[el] * ELEM[el][1]; if (!top || d.comp[el] > d.comp[top]) top = el; }
-    const name = Object.entries(d.comp).map(([el, f]) => `${el}${Math.round(f * 100)}`).join('');
-    MAT[key] = { name: `${name} (particle ${i}, ${j})`, Z, A, rho: (4 * A) / (0.6022 * d.a_A ** 3), dmax: 1.35, Emax: 0.6, cond: true, comp: d.comp, cryst: 'fcc', a: d.a_A, color: ELEM[top][2] };
-    matIndex(key);
-  }
+  if (!MAT[key]) { MAT[key] = alloyMat(d.comp, d.a_A, `particle ${i}, ${j}`); matIndex(key); }
+  return key;
+}
+// a pen's ink as one material, for wide views (one material per pen, not per particle)
+function libPenMat(i, j) {
+  const pi = Math.floor(i / ML.LIB.block), pj = Math.floor(j / ML.LIB.block), key = `libpen:${pi},${pj}`;
+  if (!MAT[key]) { const comp = ML.sketchInk(i, j); MAT[key] = alloyMat(comp, ML.latticeA(comp), `pen ${pi}, ${pj}`); matIndex(key); }
   return key;
 }
 function libSample(x, y, res = 0) {
   const ij = ML.nearest(x, y), none = { h: 0, mat: 'SiN', grain: -1, ori: null };
   if (!ij) return none;
+  // wide views (pixels over 100 nm): each particle is a spot up to a quarter of the pitch across, in its pen's
+  // ink, so the whole array shows without registering a material for every particle a pixel lands on
+  if (res > 0.1) {
+    const s = ML.sketch(ij[0], ij[1]), R = Math.min((res * 1000) / 2, 250);
+    if (!s.present || Math.hypot(x - s.x_um, y - s.y_um) * 1000 > R) return none;
+    return { h: (0.43 * s.d_nm * 1.31) / 1000, mat: libPenMat(ij[0], ij[1]), grain: -1, ori: null };
+  }
   const p = ML.particle(ij[0], ij[1]);
   if (!p.present) return none;
   const u = (x - p.x_um) * 1000, v = (y - p.y_um) * 1000; // nm from the particle centre
@@ -562,7 +576,7 @@ export const SPECIMENS = {
     phases: ['Cu', 'Si'],
   },
   lib: {
-    id: 'lib', name: 'Nanoparticle megalibrary (1000 × 1000 alloy particles)', short: 'Megalibrary', fov: 0.08, fovMin: 0.02, fovMax: 400, center: [lib0.x_um, lib0.y_um],
+    id: 'lib', name: 'Nanoparticle megalibrary (1000 × 1000 alloy particles)', short: 'Megalibrary', fov: 0.08, fovMin: 0.02, fovMax: 1200, center: [lib0.x_um, lib0.y_um],
     note: 'A million alloy nanoparticles (Au, Ag, Cu, Co, Ni; 15–25 nm) on a 1 µm grid on a 10 nm silicon-nitride membrane, written by a 10 × 10 polymer-pen array: the ink changes across the pens, the dot size along each 100 × 100 block. Noble-metal and Co–Ni particles segregate into two-crystal heterostructures; every particle has its own orientation. The same library is in TEM-view. On the membrane, TKD maps single particles.',
     sample: libSample, thin: 0.03, // µm: membrane plus particle
     phases: [],
