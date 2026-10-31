@@ -17,6 +17,7 @@ const EXAMPLES = [
   ['ebsd_map.py', 'EBSD: an orientation map'],
   ['find_e2.py', 'Challenge: find E2 of an insulator'],
   ['auto_focus_stig.py', 'Test automation: your own auto focus and stigmation'],
+  ['tkd_megalibrary.py', 'TKD screen of a nanoparticle megalibrary'],
 ];
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch {} return null; };
 const esc = (t) => String(t).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);

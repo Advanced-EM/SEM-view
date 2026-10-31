@@ -34,13 +34,17 @@ print(sem.analyze("reconstruct_relief")["summary"])
 | `acquire(steps=None)` | record the detectors (an EBSD map runs to the end, EDS counts for 3 s) |
 | `analyze(name)` | calibrate_scale, fit_resolution, fit_focus, reconstruct_relief, fit_eds, phase_map, index_ebsd, mc_summary; each with the truth |
 | `challenge(id, seed)`, `score()`, `reveal()`, `end_challenge()` | a training task's hidden misalignment, scored from the true optics: `sem-focus-stig`, `sem-aperture-align`, `sem-insulator`, `ebsd-setup` |
+| `library()`, `goto(i, j)`, `particle(i, j)` | the nanoparticle megalibrary (`specimen="lib"`, the same particles as in TEM-view): its layout, drive to particle (i, j), and the true particle for scoring |
 | `sv.show(x, title)` | an image or a profile (matplotlib on a desktop, the IDE's output panel in the browser) |
 
 ## Examples
 
 `examples/`: `quickstart.py`, `calibrate_magnification.py` (digital twin on the cross grating), `bse_relief.py`
 (3D from the quadrants in NumPy), `ebsd_map.py`, `find_e2.py` (challenge), `auto_focus_stig.py` (your own auto focus
-and stigmation against a hidden misalignment). Open one in the exhibit with `?script=<name>`.
+and stigmation against a hidden misalignment), `tkd_megalibrary.py` (TKD of single 15–25 nm particles on the
+megalibrary's membrane: find, re-centre, map, and call each particle single-crystal, twinned or two-crystal; on a
+4 × 4 sample the orientation is within 3° for 94 % and the structure right for 88 %). Open one in the exhibit
+with `?script=<name>`.
 
 ## Tests
 

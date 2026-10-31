@@ -19,7 +19,7 @@ import { fitGrating, fitEdgeResolution, fitEDSPeaks, edsPeakAt, reliefFromQuadra
 
 const r = (v, n = 3) => (v == null || !Number.isFinite(v) ? v : +v.toFixed(n));
 const IMG = ['se', 'inlens', 'bse'];
-const MKEYS = Object.keys(P.MAT);
+const { MKEYS } = P;
 
 // spectral second moments of an image (mid frequencies), for the through-focus astigmatism measurement
 function spectralTensor(arr, n) {

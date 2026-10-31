@@ -69,7 +69,7 @@ const safe = (fn) => async (args) => { try { return await fn(args); } catch (e) 
 // ------------------------------------------------------------------ settings (the same names as the Python package)
 const settings = {
   mode: z.enum(O.MODES).optional().describe('se (Everhart–Thornley SE), inlens (through-the-lens SE), bse (4-quadrant backscatter), ebsd, tkd, eds, mc (Monte Carlo interaction volume)'),
-  specimen: z.enum(Object.keys(P.SPECIMENS)).optional().describe('sn tin spheres on carbon, ni polycrystalline nickel, grid 463 nm cross-grating standard, chip FIB chip cross-section'),
+  specimen: z.enum(Object.keys(P.SPECIMENS)).optional().describe('sn tin spheres on carbon, ni polycrystalline nickel, grid 463 nm cross-grating standard, chip FIB chip cross-section, lib nanoparticle megalibrary (TKD on single particles)'),
   kV: z.number().min(0.5).max(30).optional(),
   current_pA: z.number().min(1).max(20000).optional(),
   aperture_um: z.number().optional().describe('10, 20, 30, 60 or 120'),
