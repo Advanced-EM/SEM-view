@@ -62,7 +62,11 @@ export function euler(O) {
 // ---------------------------------------------------------------- composition
 const normComp = (c) => { let s = 0; for (const k in c) s += c[k]; const o = {}; for (const k in c) if (c[k] / s >= 0.01) o[k] = c[k] / s; let t = 0; for (const k in o) t += o[k]; for (const k in o) o[k] = +(o[k] / t).toFixed(4); return o; };
 // the ink each pen carries
+// except pen (9, 0), inked on its own with a binary Au–Co ink: the two metals do not mix, so every particle in its
+// block separates into an Au crystal and a Co crystal
+export const AUCO_PEN = [9, 0];
 export function penComposition(pi, pj) {
+  if (pi === AUCO_PEN[0] && pj === AUCO_PEN[1]) return { Au: 0.5, Co: 0.5 };
   const u = (pi + 0.5) / LIB.pens, v = (pj + 0.5) / LIB.pens, s2 = 2 * LIB.spread * LIB.spread, c = {};
   LIB.elements.forEach((el, k) => {
     const [cu, cv] = LIB.sources[el];
@@ -201,6 +205,24 @@ export function truth(i, j) {
     interface: p.interface ? { normal: p.interface.n.map((v) => +v.toFixed(4)), epitaxial: p.interface.epitaxial } : null,
     satellite: p.satellite ? { offset_nm: [p.satellite.dx_nm, p.satellite.dy_nm], diameter_nm: p.satellite.d_nm, euler_deg: euler(p.satellite.O) } : null,
   };
+}
+
+// a composition as a formula in at.%, in the library's element order: Au₈₃Cu₁₇
+const SUBS = '₀₁₂₃₄₅₆₇₈₉';
+export function formula(comp) {
+  const els = LIB.elements.filter((el) => comp[el]);
+  if (els.length === 1) return els[0];
+  return els.map((el) => el + String(Math.round(comp[el] * 100)).replace(/\d/g, (d) => SUBS[d])).join('');
+}
+// one particle in words: its composition and how its atoms arranged themselves
+export function describe(p) {
+  if (!p.present) return 'no particle formed at this node';
+  const f = formula(p.comp);
+  if (p.phase === 'heterostructure') {
+    const [a, b] = p.domains;
+    return `${f}, phase-separated into two crystals, ${formula(a.comp)} (a = ${a.a_A} Å) and ${formula(b.comp)} (a = ${b.a_A} Å), ${p.interface.epitaxial ? 'epitaxial across a {111} interface' : 'at a random orientation to each other'}`;
+  }
+  return `${f} alloy (a = ${p.a_A} Å)${p.phase === 'twinned' ? ', twinned on {111}' : ''}`;
 }
 
 // the layout a script needs to plan an acquisition (no answers in it)
